@@ -9,40 +9,19 @@ namespace GiftCardPlatform.ArchitectureTests;
 /// </summary>
 public sealed class ModuleBoundaryTests
 {
-    private static readonly string[] ModuleNames =
-        [
-            "Identity",
-            "Organizations",
-            "Authorization",
-            "Audit",
-            "Ledger",
-            "CorporateCredits",
-            "GiftCards",
-            "Distribution",
-            "Reporting",
-            "Sharing",
-            "Partners",
-        ];
-
-    private static Assembly Implementation(string module) =>
-        Assembly.Load($"GiftCardPlatform.Modules.{module}");
-
-    private static Assembly Contracts(string module) =>
-        Assembly.Load($"GiftCardPlatform.Modules.{module}.Contracts");
-
     [Fact]
     public void Modules_do_not_reference_another_modules_implementation_assembly()
     {
         var violations = new List<string>();
 
-        foreach (var module in ModuleNames)
+        foreach (var module in PlatformModules.Names)
         {
-            var referenced = Implementation(module)
+            var referenced = PlatformModules.Implementation(module)
                 .GetReferencedAssemblies()
                 .Select(a => a.Name)
                 .ToHashSet(StringComparer.Ordinal);
 
-            foreach (var other in ModuleNames.Where(m => !string.Equals(m, module, StringComparison.Ordinal)))
+            foreach (var other in PlatformModules.Names.Where(m => !string.Equals(m, module, StringComparison.Ordinal)))
             {
                 var forbidden = $"GiftCardPlatform.Modules.{other}";
 
@@ -61,9 +40,9 @@ public sealed class ModuleBoundaryTests
     {
         var violations = new List<string>();
 
-        foreach (var module in ModuleNames)
+        foreach (var module in PlatformModules.Names)
         {
-            var crossModuleReferences = Implementation(module)
+            var crossModuleReferences = PlatformModules.Implementation(module)
                 .GetReferencedAssemblies()
                 .Select(a => a.Name)
                 .Where(name =>
@@ -88,9 +67,9 @@ public sealed class ModuleBoundaryTests
     {
         var violations = new List<string>();
 
-        foreach (var module in ModuleNames)
+        foreach (var module in PlatformModules.Names)
         {
-            var referenced = Contracts(module)
+            var referenced = PlatformModules.Contracts(module)
                 .GetReferencedAssemblies()
                 .Select(a => a.Name)
                 .Where(name =>
@@ -109,9 +88,9 @@ public sealed class ModuleBoundaryTests
     {
         var violations = new List<string>();
 
-        foreach (var module in ModuleNames)
+        foreach (var module in PlatformModules.Names)
         {
-            var dbContextTypes = Implementation(module)
+            var dbContextTypes = PlatformModules.Implementation(module)
                 .GetTypes()
                 .Where(t => t.Name.EndsWith("DbContext", StringComparison.Ordinal))
                 .ToList();
@@ -130,9 +109,9 @@ public sealed class ModuleBoundaryTests
     {
         var violations = new List<string>();
 
-        foreach (var module in ModuleNames)
+        foreach (var module in PlatformModules.Names)
         {
-            violations.AddRange(Contracts(module)
+            violations.AddRange(PlatformModules.Contracts(module)
                 .GetTypes()
                 .Where(t => t.Name.EndsWith("DbContext", StringComparison.Ordinal))
                 .Select(t => $"{t.FullName} is declared in a Contracts assembly."));
@@ -148,23 +127,8 @@ public sealed class ModuleBoundaryTests
 /// </summary>
 public sealed class DomainPurityTests
 {
-    private static readonly string[] ModuleNames =
-        [
-            "Identity",
-            "Organizations",
-            "Authorization",
-            "Audit",
-            "Ledger",
-            "CorporateCredits",
-            "GiftCards",
-            "Distribution",
-            "Reporting",
-            "Sharing",
-            "Partners",
-        ];
-
     private static IEnumerable<Assembly> ModuleAssemblies() =>
-        ModuleNames.Select(m => Assembly.Load($"GiftCardPlatform.Modules.{m}"));
+        PlatformModules.Implementations();
 
     private static void AssertDomainDoesNotDependOn(params string[] forbiddenNamespaces)
     {
