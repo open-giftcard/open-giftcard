@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 using GiftCardPlatform.Api;
 using GiftCardPlatform.Api.Authentication;
+using GiftCardPlatform.Api.Demo;
 using GiftCardPlatform.Api.Endpoints;
 using GiftCardPlatform.Api.Errors;
 using GiftCardPlatform.Api.Services;
@@ -134,6 +135,17 @@ if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<INotificationChannelSender>(
         new CapturingNotificationSender(NotificationChannel.Sms));
+}
+
+// Development-only demonstration seed. Registered only here, so outside
+// Development the hosted service does not exist and no configuration can turn it
+// on. It is additionally off unless Demo:Seed:Enabled is set.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<DemoSeedOptions>(
+        builder.Configuration.GetSection(DemoSeedOptions.SectionName));
+    builder.Services.AddSingleton<DemoSeeder>();
+    builder.Services.AddHostedService<DemoSeedHostedService>();
 }
 
 builder.Services.AddHostedService<NotificationDispatcherWorker>();
