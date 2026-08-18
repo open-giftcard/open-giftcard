@@ -1,0 +1,20 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      Warnings are not errors by design: EF Core generated migrations and other
+      tooling output would otherwise create unnecessary build friction.
+    -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- CA1861: raised by EF Core generated migration code, which is not hand-edited. -->
+    <NoWarn>$(NoWarn);CA1861</NoWarn>
+  </PropertyGroup>
+
+</Project>

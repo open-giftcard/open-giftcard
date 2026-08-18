@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Audit.Contracts\GiftCardPlatform.Modules.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Authorization.Contracts\GiftCardPlatform.Modules.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.CorporateCredits.Contracts\GiftCardPlatform.Modules.CorporateCredits.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Ledger.Contracts\GiftCardPlatform.Modules.Ledger.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Organizations.Contracts\GiftCardPlatform.Modules.Organizations.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

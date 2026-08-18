@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Authorization.Contracts\GiftCardPlatform.Modules.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Reporting.Contracts\GiftCardPlatform.Modules.Reporting.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+</Project>

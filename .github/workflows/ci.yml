@@ -1,0 +1,73 @@
+name: CI
+
+# Every guarantee this project relies on — RLS tenant isolation, append-only
+# audit privileges, atomic audit, and the module boundaries — is verified by the
+# test suite. This workflow is the gate that makes those guarantees real
+# (ADR-022, REVIEW-001 H1).
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Resolved from global.json so CI uses the same SDK family as local
+      # development, rather than whatever happens to be latest on the runner.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Report toolchain
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # Fast, no database required. Run first so boundary or domain breaks fail
+      # before the slower suite starts a container.
+      - name: Architecture tests
+        run: >-
+          dotnet test tests/GiftCardPlatform.ArchitectureTests/GiftCardPlatform.ArchitectureTests.csproj
+          --no-build --configuration Release --logger "trx;LogFileName=architecture.trx"
+
+      - name: Unit tests
+        run: >-
+          dotnet test tests/GiftCardPlatform.UnitTests/GiftCardPlatform.UnitTests.csproj
+          --no-build --configuration Release --logger "trx;LogFileName=unit.trx"
+
+      # Uses Testcontainers against real PostgreSQL. GitHub-hosted runners ship
+      # with Docker, so GIFTCARD_TEST_CONNECTION is deliberately left unset and
+      # the harness starts its own container. The EF InMemory and SQLite
+      # providers cannot enforce RLS, so there is no substitute here.
+      - name: Integration tests
+        run: >-
+          dotnet test tests/GiftCardPlatform.IntegrationTests/GiftCardPlatform.IntegrationTests.csproj
+          --no-build --configuration Release --logger "trx;LogFileName=integration.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: warn

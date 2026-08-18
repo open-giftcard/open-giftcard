@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: giftcard-postgres
+    restart: unless-stopped
+    environment:
+      # Superuser is used only by the container entrypoint to create roles.
+      # The application never connects with it.
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:?set POSTGRES_SUPERUSER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD in .env}
+      # Consumed by the init script to create the two application roles (ADR-019).
+      GIFTCARD_MIGRATOR_USER: ${POSTGRES_MIGRATOR_USER:?set POSTGRES_MIGRATOR_USER in .env}
+      GIFTCARD_MIGRATOR_PASSWORD: ${POSTGRES_MIGRATOR_PASSWORD:?set POSTGRES_MIGRATOR_PASSWORD in .env}
+      GIFTCARD_APP_USER: ${POSTGRES_APP_USER:?set POSTGRES_APP_USER in .env}
+      GIFTCARD_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - giftcard-pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  giftcard-pgdata:

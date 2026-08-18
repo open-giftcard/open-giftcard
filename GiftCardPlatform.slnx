@@ -1,0 +1,37 @@
+﻿<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GiftCardPlatform.Api/GiftCardPlatform.Api.csproj" />
+    <Project Path="src/GiftCardPlatform.BuildingBlocks/GiftCardPlatform.BuildingBlocks.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Audit.Contracts/GiftCardPlatform.Modules.Audit.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Audit/GiftCardPlatform.Modules.Audit.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Authorization.Contracts/GiftCardPlatform.Modules.Authorization.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Authorization/GiftCardPlatform.Modules.Authorization.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.CorporateCredits.Contracts/GiftCardPlatform.Modules.CorporateCredits.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.CorporateCredits/GiftCardPlatform.Modules.CorporateCredits.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Distribution.Contracts/GiftCardPlatform.Modules.Distribution.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Distribution/GiftCardPlatform.Modules.Distribution.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.GiftCards.Contracts/GiftCardPlatform.Modules.GiftCards.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.GiftCards/GiftCardPlatform.Modules.GiftCards.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Identity.Contracts/GiftCardPlatform.Modules.Identity.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Identity/GiftCardPlatform.Modules.Identity.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Ledger.Contracts/GiftCardPlatform.Modules.Ledger.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Ledger/GiftCardPlatform.Modules.Ledger.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Notifications.Contracts/GiftCardPlatform.Modules.Notifications.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Notifications/GiftCardPlatform.Modules.Notifications.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Organizations.Contracts/GiftCardPlatform.Modules.Organizations.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Organizations/GiftCardPlatform.Modules.Organizations.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Partners.Contracts/GiftCardPlatform.Modules.Partners.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Partners/GiftCardPlatform.Modules.Partners.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Payments.Contracts/GiftCardPlatform.Modules.Payments.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Payments/GiftCardPlatform.Modules.Payments.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Reporting.Contracts/GiftCardPlatform.Modules.Reporting.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Reporting/GiftCardPlatform.Modules.Reporting.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Sharing.Contracts/GiftCardPlatform.Modules.Sharing.Contracts.csproj" />
+    <Project Path="src/GiftCardPlatform.Modules.Sharing/GiftCardPlatform.Modules.Sharing.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GiftCardPlatform.ArchitectureTests/GiftCardPlatform.ArchitectureTests.csproj" />
+    <Project Path="tests/GiftCardPlatform.IntegrationTests/GiftCardPlatform.IntegrationTests.csproj" />
+    <Project Path="tests/GiftCardPlatform.UnitTests/GiftCardPlatform.UnitTests.csproj" />
+  </Folder>
+</Solution>

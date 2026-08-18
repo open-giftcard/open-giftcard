@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.GiftCards.Contracts\GiftCardPlatform.Modules.GiftCards.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

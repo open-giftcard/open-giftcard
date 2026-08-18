@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!--
+      Identifier for the local user-secrets store. Not a secret: it only names
+      the folder under %APPDATA%\Microsoft\UserSecrets where development values
+      live, outside the repository. Development configuration such as the SMTP
+      password is set with `dotnet user-secrets set`, never committed here.
+    -->
+    <UserSecretsId>giftcard-platform-api-b46ca472-02fc-503a-bf02-83ccb2f4e363</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Notifications\GiftCardPlatform.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Notifications.Contracts\GiftCardPlatform.Modules.Notifications.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Organizations\GiftCardPlatform.Modules.Organizations.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Audit\GiftCardPlatform.Modules.Audit.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Authorization\GiftCardPlatform.Modules.Authorization.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Authorization.Contracts\GiftCardPlatform.Modules.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.CorporateCredits\GiftCardPlatform.Modules.CorporateCredits.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.CorporateCredits.Contracts\GiftCardPlatform.Modules.CorporateCredits.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Distribution\GiftCardPlatform.Modules.Distribution.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Distribution.Contracts\GiftCardPlatform.Modules.Distribution.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.GiftCards\GiftCardPlatform.Modules.GiftCards.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.GiftCards.Contracts\GiftCardPlatform.Modules.GiftCards.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Identity\GiftCardPlatform.Modules.Identity.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Identity.Contracts\GiftCardPlatform.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Ledger\GiftCardPlatform.Modules.Ledger.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Reporting\GiftCardPlatform.Modules.Reporting.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Reporting.Contracts\GiftCardPlatform.Modules.Reporting.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Sharing\GiftCardPlatform.Modules.Sharing.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Sharing.Contracts\GiftCardPlatform.Modules.Sharing.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Payments\GiftCardPlatform.Modules.Payments.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Payments.Contracts\GiftCardPlatform.Modules.Payments.Contracts.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Partners\GiftCardPlatform.Modules.Partners.csproj" />
+    <ProjectReference Include="..\GiftCardPlatform.Modules.Partners.Contracts\GiftCardPlatform.Modules.Partners.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Development-only demo page, embedded so it serves regardless of working directory. -->
+    <EmbeddedResource Include="Demo\index.html" />
+  </ItemGroup>
+
+</Project>
+

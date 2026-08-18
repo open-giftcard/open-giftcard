@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Npgsql" />
+    <!-- Explicitly pin the fixed transitive Testcontainers dependency.
+         SSH.NET <= 2025.1.0 is affected by GHSA-q939-rpr3-3284. -->
+    <PackageReference Include="SSH.NET" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Api\GiftCardPlatform.Api.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Notifications\GiftCardPlatform.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Notifications.Contracts\GiftCardPlatform.Modules.Notifications.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Organizations\GiftCardPlatform.Modules.Organizations.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Audit\GiftCardPlatform.Modules.Audit.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Audit.Contracts\GiftCardPlatform.Modules.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Authorization.Contracts\GiftCardPlatform.Modules.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Ledger\GiftCardPlatform.Modules.Ledger.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.CorporateCredits\GiftCardPlatform.Modules.CorporateCredits.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Distribution\GiftCardPlatform.Modules.Distribution.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Distribution.Contracts\GiftCardPlatform.Modules.Distribution.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.GiftCards\GiftCardPlatform.Modules.GiftCards.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Reporting.Contracts\GiftCardPlatform.Modules.Reporting.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Sharing\GiftCardPlatform.Modules.Sharing.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Sharing.Contracts\GiftCardPlatform.Modules.Sharing.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Partners\GiftCardPlatform.Modules.Partners.csproj" />
+    <ProjectReference Include="..\..\src\GiftCardPlatform.Modules.Partners.Contracts\GiftCardPlatform.Modules.Partners.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
+

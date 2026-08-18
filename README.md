@@ -1,0 +1,697 @@
+# Digital Corporate Gift Card Platform
+
+Secure, multi-tenant platform that digitizes corporate gift cards. Built as a
+modular monolith on .NET 10, ASP.NET Core, and PostgreSQL.
+
+Contributor documentation is being rewritten for this release and is not
+published yet. Until it lands, this README is the authoritative guide, and the
+code is the authority over the README: the architecture tests, the migrations,
+and the integration suite describe the system precisely.
+
+## Current state
+
+All four functional phases are implemented. The backend, portal, and cardholder
+repositories are published together as synchronized source candidate
+**`v0.4.0-rc.2`**.
+
+| Repository | Tag | Commit |
+| --- | --- | --- |
+| `open-giftcard` | `v0.4.0-rc.2` | `2721f71d` |
+| `open-giftcard-portal` | `v0.4.0-rc.2` | `76bb1dd9` |
+| `open-giftcard-cardholder` | `v0.4.0-rc.2` | `e40581b9` |
+
+Each client repository pins its own capture of the backend OpenAPI document
+under `contracts/`, and each `contracts/README.md` records the backend commit
+and SHA-256 it was taken from. Those files are the authority; the two captures
+are currently not byte-identical to each other. A candidate is a reproducible
+source baseline, **not** evidence of a deployment.
+
+### What works
+
+**Foundation.** Global identities with email or E.164 phone login, password
+hashing, 15-minute JWTs and rotating 30-day refresh tokens with reuse
+detection. Customer organization hierarchy to five levels, memberships, and
+organization-scoped RBAC where scope lives on the role *assignment*, so one role
+is reusable at different scopes. Platform authority is a separate model
+from customer membership. PostgreSQL Row-Level Security is the authoritative
+isolation barrier, not application filtering.
+
+**Money.** A posted-only balanced double-entry Ledger is the sole financial
+authority. Corporate credit allocation and reversal, gift-card issuance from a
+funding root into organization inventory, distribution to an email address or
+phone number that has no account yet, single-use claim and activation, bounded
+all-or-nothing bulk batches of up to 100, and lifecycle suspend, reactivate,
+cancel, and expire with exact value return.
+
+**Sharing.** A cardholder can split a card. Creating a share reserves its amount
+immediately; the Ledger transfer happens only on successful claim. Protected
+links carry a 256-bit secret plus a six-digit PIN, expire in 24 hours, are
+single-use, and lock permanently after five wrong attempts. Contact-bound
+invitations reuse the verified activation path so a link plus a PIN is never
+mistaken for identity verification.
+
+**Payments.** A 60-second single-use credential presented as either an opaque QR
+code or a 12-digit numeric code. POS clients and terminals authenticate
+separately from the cardholder. A sale takes a two-minute provision that reserves
+value without posting anything, then confirms for any amount up to that ceiling,
+releasing the remainder. Refunds are immutable and cumulatively capped.
+Reporting exposes gross, refunded, and net across stores, terminals, receipts,
+and reversals.
+
+**Audit.** Append-only records the runtime role cannot update or delete, plus
+signed tamper-evident checkpoints: batches are sealed behind a database sequence,
+canonicalised, reduced to a SHA-256 Merkle root, chained, and signed. Audit
+writers stay concurrent, and a signer outage delays sealing without ever
+refusing a purchase.
+
+**Notification delivery.** Activation messages are queued in a transactional
+outbox *inside* the business transaction, so a message becomes durable exactly
+when the distribution does. A dispatcher delivers with bounded retry, backoff,
+and dead-lettering. An SMTP sender ships for demonstrations.
+
+### What is not done
+
+This is not deployable, and the gaps are deliberate rather than unknown:
+
+- **Managed audit custody.** Checkpoint signing uses local development key files.
+  Production requires a KMS/HSM signer and immutable WORM storage; the seams
+  exist and the adapters do not. Non-Development configuration refuses to enable
+  checkpointing rather than silently using local keys.
+- **Data Protection key persistence.** The outbox protects queued credentials
+  with keys that are currently ephemeral, so restarting the API dead-letters
+  anything still queued.
+- **SMS.** No provider adapter. A phone-channel message dead-letters with
+  `notification.channel.unconfigured` rather than retrying forever.
+- **Deployment and operations.** No container images, migration job, TLS, DNS,
+  ingress, central logging, metrics, backups, or restore drill.
+- **Staging certification.** Never deployed anywhere.
+- **POS counter application.** The `open-giftcard-pos` repository holds a
+  demonstration till against the backend payment APIs. It is not retail
+  software: the basket is a fixed mock, it carries no contract pin, and no
+  real counter-device journey has been demonstrated. It is deliberately
+  outside the synchronized release candidates.
+
+Deployment gates are summarised under *What is not done* above. The full
+deployment guide is part of the documentation still to be published.
+
+### Client boundary
+
+The portal and cardholder applications are separate repositories that consume
+the versioned OpenAPI contract. Browser deployments use a same-origin BFF that
+keeps refresh tokens server-side; the API stays bearer-only and does not enable
+broad CORS. See
+the portal and cardholder repositories, each of which pins this backend
+contract under `contracts/`.
+
+## Requirements
+
+- .NET 10 SDK
+- PostgreSQL 18, running locally
+- PostgreSQL's `psql` command-line client
+- `dotnet-ef` tooling: `dotnet tool install --global dotnet-ef`
+
+---
+
+## Local demonstration
+
+All commands run from the repository root. PowerShell syntax; on bash replace
+`$env:NAME = "value"` with `export NAME="value"`.
+
+### 1. Configure local credentials
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edit `.env` and replace every `change_me_locally` value. `.env` is git-ignored
+and must never be committed.
+
+### 2. Prepare PostgreSQL
+
+Make sure the PostgreSQL 18 Windows service is running, then connect as the
+local PostgreSQL administrator:
+
+```powershell
+$env:PGPASSWORD = "<your PostgreSQL administrator password>"
+psql -h localhost -p 5432 -U postgres -d postgres
+```
+
+If `psql` is not on `PATH`, use
+`& "C:\Program Files\PostgreSQL\18\bin\psql.exe"` in its place.
+
+At the `psql` prompt, run the following once on a new local installation.
+Replace both password placeholders with the corresponding values from `.env`:
+
+```sql
+CREATE ROLE giftcard_migrator
+    LOGIN PASSWORD '<your migrator password>'
+    NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+
+CREATE ROLE giftcard_app
+    LOGIN PASSWORD '<your app password>'
+    NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+
+CREATE DATABASE giftcard OWNER giftcard_migrator;
+\connect giftcard
+
+GRANT CONNECT ON DATABASE giftcard TO giftcard_migrator, giftcard_app;
+
+CREATE EXTENSION IF NOT EXISTS ltree;
+
+CREATE SCHEMA IF NOT EXISTS organizations AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS audit AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS identity AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS "authorization" AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS ledger AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS corporate_credits AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS gift_cards AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS distribution AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS sharing AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS payments AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS notifications AUTHORIZATION giftcard_migrator;
+CREATE SCHEMA IF NOT EXISTS partners AUTHORIZATION giftcard_migrator;
+
+GRANT USAGE ON SCHEMA organizations, audit, identity, "authorization",
+    ledger, corporate_credits, gift_cards, distribution, sharing, payments,
+    notifications, partners
+    TO giftcard_app;
+REVOKE CREATE ON SCHEMA organizations, audit, identity, "authorization",
+    ledger, corporate_credits, gift_cards, distribution, sharing, payments,
+    notifications, partners
+    FROM giftcard_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA organizations
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA "authorization"
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA identity
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA audit
+    GRANT SELECT, INSERT ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA ledger
+    GRANT SELECT, INSERT ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA corporate_credits
+    GRANT SELECT, INSERT ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA gift_cards
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA distribution
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA sharing
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA payments
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA notifications
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE giftcard_migrator IN SCHEMA partners
+    GRANT SELECT, INSERT, UPDATE ON TABLES TO giftcard_app;
+
+\quit
+```
+
+Back in PowerShell, clear the temporary administrator password:
+
+```powershell
+Remove-Item Env:\PGPASSWORD
+```
+
+These are the two database roles required by ADR-019:
+
+| Role                | Purpose                                     | Privileges                                            |
+| ------------------- | ------------------------------------------- | ----------------------------------------------------- |
+| `giftcard_migrator` | Owns schemas, tables, and migrations        | DDL; not used at runtime                              |
+| `giftcard_app`      | Used by the running API                     | Non-superuser, `NOBYPASSRLS`, DML only                |
+
+The runtime role holds **no UPDATE or DELETE privilege on `audit.audit_records`**,
+which is what enforces the append-only guarantee at the database level.
+
+### 3. Apply migrations
+
+Migrations run as the migration owner, never as the application role.
+
+```powershell
+$env:GIFTCARD_MIGRATIONS_CONNECTION = "Host=localhost;Port=5432;Database=giftcard;Username=giftcard_migrator;Password=<your migrator password>"
+
+dotnet ef database update --project src/GiftCardPlatform.Modules.Organizations --context OrganizationsDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Audit --context AuditDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Authorization --context AuthorizationDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Identity --context IdentityDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Ledger --context LedgerDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.CorporateCredits --context CorporateCreditsDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.GiftCards --context GiftCardsDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Distribution --context DistributionDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Sharing --context SharingDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Payments --context PaymentsDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Notifications --context NotificationsDbContext
+dotnet ef database update --project src/GiftCardPlatform.Modules.Partners --context PartnersDbContext
+```
+
+Twelve modules each own a schema and an independent migration history:
+`organizations`, `audit`, `authorization`, `identity`, `ledger`,
+`corporate_credits`, `gift_cards`, `distribution`, `sharing`, `payments`,
+`notifications`, and `partners`.
+
+### 4. Configure email delivery (optional)
+
+Skip this and Development captures activation links in the outbox instead of
+sending them; the demo console can still open them. Configure it and real email
+goes out, which is what makes the activation journey convincing to an audience.
+
+The non-secret half lives in `appsettings.Development.json` under
+`Notifications:Smtp`. For Gmail, `Host` is `smtp.gmail.com` and `Port` is `587`;
+set `FromAddress` to the mailbox the credential belongs to.
+
+`Enabled` is committed as `false` on purpose. When it is on, the API refuses to
+start without a password, so a `true` in a committed file would break a fresh
+clone and CI for anyone who has not set the secret. Both the switch and the
+password are therefore per-machine, and both live in user secrets:
+
+```powershell
+dotnet user-secrets set --project src/GiftCardPlatform.Api "Notifications:Smtp:Enabled" "true"
+dotnet user-secrets set --project src/GiftCardPlatform.Api "Notifications:Smtp:Password" "<app password>"
+```
+
+Gmail requires an *app password*, not the account password: enable 2-Step
+Verification, then create one at
+[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+Outlook.com personal accounts no longer support password-based SMTP and will
+not work with this adapter.
+
+For a demonstration, sending to a plus-alias such as
+`you+demo1@gmail.com` lets you distribute several cards and claim each one
+without extra mailboxes.
+
+### 5. Run the API
+
+```powershell
+$env:ConnectionStrings__Default = "Host=localhost;Port=5432;Database=giftcard;Username=giftcard_app;Password=<your app password>"
+$env:Authentication__Jwt__SigningKey = "<random development value of at least 32 bytes>"
+$env:Bootstrap__PlatformAdministrator__Secret = "<different random value of at least 32 bytes>"
+$env:Partners__EpinDeliveryKey = "<Base64-encoded random 32-byte value>"
+$env:Partners__ClaimBaseUrl = "http://localhost:5180/epin"
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+
+dotnet run --project src/GiftCardPlatform.Api
+```
+
+### 6. Open Swagger or the demo UI
+
+```text
+http://localhost:5xxx/swagger
+http://localhost:5xxx/demo
+```
+
+### Local reseller e-pin certification without deployment
+
+When a local PostgreSQL server is installed, the complete reseller backend and
+cardholder regression gates can run without Docker or a deployed environment:
+
+```powershell
+.\scripts\Test-PartnerEpinLocal.ps1
+```
+
+The script securely prompts for the local PostgreSQL administrator password,
+creates only the guarded disposable `giftcard_partner_epin_test` database, runs the
+Release build, unit and architecture suites, the real-PostgreSQL partner tests,
+and the sibling cardholder repository's full suite, then removes the connection
+string and password from its process environment. It never targets the normal
+development database. Use `-AllIntegrationTests` to run the entire PostgreSQL
+integration suite rather than only PARTNER-001.
+
+Every integration run writes a fresh ignored TRX under
+`tests/GiftCardPlatform.IntegrationTests/TestResults` and prints failed test
+names and assertions before returning an error. After a failed full run, repeat
+only that database gate with:
+
+```powershell
+.\scripts\Test-PartnerEpinLocal.ps1 -IntegrationOnly -AllIntegrationTests
+```
+
+Use the port printed by `dotnet run`. `/demo` is the responsive development console:
+it guides bootstrap/login, customer onboarding, initial Company Administrator
+assignment, hierarchy, memberships, roles, corporate-credit allocation,
+ledger-derived balance/history viewing, organization card issuance/inventory,
+individual and max-100 bulk email/phone distribution, batch result lookup,
+local activation delivery, recipient claim, organization/platform lifecycle
+control, returned-value history, cardholder suspend/reactivate,
+organization financial summaries/unified history/read-only reconciliation,
+recipient-owned card balances/history, email-or-phone login, and session
+rotation/revoke. It also demonstrates protected-share creation, the one-time
+link/PIN response, authenticated claim, direct email/phone invitation and both
+activation branches, sent/received history, cancellation, and
+posted/reserved/available value. It is
+available only in Development, holds no business rules, and uses only public
+`/api/v1` endpoints.
+
+Bulk creation uses
+`POST /api/v1/organizations/{organizationId}/gift-card-batches`; durable
+results can be retrieved with
+`GET /api/v1/organizations/{organizationId}/gift-card-batches/{batchId}`.
+Enter one email address or E.164 phone number per line in the demo. The first
+version accepts at most 100 recipients and deliberately provides no partial
+success.
+
+The Development activation link defaults to
+`http://localhost:5143/demo#/activation`. If the API is started on another
+port, set `Distribution__ClaimBaseUrl` to that origin plus
+`/demo#/activation`. Claim tokens default to 24 hours, lock after five invalid
+secret attempts, and the endpoint defaults to 10 requests per source IP per
+minute; all three values are configurable under `Distribution`.
+
+Protected share links default to `http://localhost:5180/share/claim`, expire
+after exactly 24 hours, and permanently lock after five failed PIN attempts.
+Set `Sharing__ClaimBaseUrl` to the cardholder BFF route for the target
+environment. The bounded expiry worker is enabled by default and is configured
+with `Sharing__ExpirationEnabled`, `Sharing__ExpirationPollIntervalSeconds`,
+and `Sharing__ExpirationBatchSize`.
+
+Payment QR issuance, provision creation, and confirmation default to 60
+requests per minute under `Payments:RedemptionRateLimit:PermitLimit`. The quota
+is partitioned by authenticated user or POS client, so tills behind the same
+store gateway do not collapse into one source-IP bucket.
+
+Audit checkpoint defaults are
+`Audit__Checkpoints__Enabled=false`,
+`Audit__Checkpoints__PollIntervalSeconds=300`, and
+`Audit__Checkpoints__BatchSize=10000`. Local Development additionally requires
+explicit `DevelopmentSigningKeyPath` (an ECDSA P-256 PEM private key) and
+`DevelopmentWitnessDirectory`. The local witness uses create-only files and is
+for developer verification only; it is not a production WORM substitute.
+
+Platform payment reporting is available at
+`GET /api/v1/platform/reports/payments` and
+`GET /api/v1/platform/reports/payments/{paymentProvisionId}`. It requires
+`platform.payments.view`, supports exact store/client/terminal/tenant/state/
+currency filters, literal receipt/card/POS reference search, inclusive/exclusive
+UTC bounds, and filter-bound cursor pagination. Page and all-matching totals
+preserve currency boundaries and expose provisioned, confirmed, refunded, net,
+refund-count, and fully reversed values. Receipt detail returns ordered refund
+lines and immutable Ledger links without owner identity, payment credentials,
+POS secrets, or idempotency keys.
+
+Direct share activation links default to
+`http://localhost:5180/activate/share`. Set `Sharing__DirectClaimBaseUrl` to the
+cardholder BFF clean-intake route. The Development console captures the
+post-commit notification for local proof; a durable outbox and real email/SMS
+provider remain required before staging or pilot delivery.
+
+Behind a BFF or reverse proxy, configure each immediate trusted proxy as a
+literal IP address under `Networking:ForwardedHeaders:KnownProxies`, for example
+`Networking__ForwardedHeaders__KnownProxies__0=127.0.0.1`. The backend then
+honors one `X-Forwarded-For` address before applying source-IP rate limits. The
+proxy must overwrite that header from its observed client connection and must
+not append or relay a browser-supplied value. With no allowlist, forwarded
+addresses are ignored and the direct remote address remains authoritative.
+
+Automatic expiration is enabled by default, polls every 30 seconds, and
+processes at most 50 due cards per batch. Configure it under
+`GiftCards:Expiration`, or with
+`GiftCards__Expiration__Enabled`,
+`GiftCards__Expiration__PollIntervalSeconds`, and
+`GiftCards__Expiration__BatchSize`. The interval must be 5–86400 seconds and
+the batch size 1–100. Each card is PostgreSQL-serialized and idempotent, so a
+retry cannot duplicate the terminal value return.
+
+### 7. Authenticate
+
+Call the one-time bootstrap exactly once:
+
+```powershell
+curl.exe -X POST http://localhost:5000/api/v1/bootstrap/platform-administrator `
+  -H "Content-Type: application/json" `
+  -H "X-Platform-Bootstrap-Secret: <the configured bootstrap secret>" `
+  -d '{\"email\":\"platform.admin@example.com\",\"password\":\"a long development passphrase\"}'
+```
+
+Then call `POST /api/v1/auth/login` with that email and password. Recipient
+accounts use either the email or `phoneNumber` selected during activation, never
+both. Login returns a 15-minute bearer JWT and a one-time 30-day refresh token
+without sending another email or SMS. Rotate it through
+`POST /api/v1/auth/refresh`; revoke its session through
+`POST /api/v1/auth/revoke`. Remove the bootstrap secret from runtime
+configuration after the first success; PostgreSQL permanently refuses any
+second bootstrap.
+
+JWT bearer authentication is the only identity mechanism in every environment.
+A bearer caller selects a customer organization with `X-Organization-Id`; the
+API verifies an active membership before accepting that scope. Caller-selected
+development identity and permission headers are not supported.
+
+### 8. Create an organization
+
+```powershell
+curl.exe -X POST http://localhost:5000/api/v1/organizations `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Bearer <platform administrator access token>" `
+  -d '{\"name\":\"Example Customer Company\",\"code\":\"EXAMPLE\"}'
+```
+
+Returns `201 Created`:
+
+```json
+{
+  "id": "0192f4c2-...",
+  "name": "Example Customer Company",
+  "code": "EXAMPLE",
+  "status": "Active",
+  "depth": 0,
+  "createdAtUtc": "2026-07-23T10:30:00+00:00"
+}
+```
+
+### 9. Read it back
+
+```powershell
+curl.exe http://localhost:5000/api/v1/organizations/<id> `
+  -H "Authorization: Bearer <platform administrator access token>"
+```
+
+### 10. Inspect both rows in PostgreSQL
+
+```powershell
+$env:PGPASSWORD = "<your app password>"
+
+psql -h localhost -p 5432 -U giftcard_app -d giftcard -c "select id, name, code, status, depth, parent_organization_id, hierarchy_path::text from organizations.organizations;"
+
+psql -h localhost -p 5432 -U giftcard_app -d giftcard -c "select operation, entity_type, entity_id, outcome, actor_type, occurred_at_utc from audit.audit_records order by occurred_at_utc desc limit 5;"
+```
+
+Confirm the append-only guarantee — this must fail with `permission denied`:
+
+```powershell
+psql -h localhost -p 5432 -U giftcard_app -d giftcard -c "delete from audit.audit_records;"
+Remove-Item Env:\PGPASSWORD
+```
+
+---
+
+---
+
+## Full end-to-end demonstration
+
+The single-repository walkthrough above proves the backend. This section runs
+the complete business journey across all three applications, the way a customer
+would actually experience it: the platform operator funds a company, the company issues and sends
+a card, a recipient activates it by email, shares part of it, and finally pays
+at a till.
+
+Everything runs natively on Windows. Docker is not required.
+
+### Additional requirements
+
+- Node.js 24 or newer and pnpm 11, for the portal front end
+- All three repositories cloned as siblings:
+
+```text
+GitHub/
+  open-giftcard              backend, this repository
+  open-giftcard-portal       staff and platform operator portal
+  open-giftcard-cardholder   recipient application
+```
+
+Check out `v0.4.0-rc.2` in each, or leave all three on `main`. They must be
+consistent: the clients are pinned to a specific backend contract and will
+refuse a mismatched revision.
+
+### The moving parts
+
+| What | Port | Started by |
+| --- | --- | --- |
+| Backend API | 5143 | `dotnet run --project src/GiftCardPlatform.Api` |
+| Backend demo console | 5143 `/demo` | served by the API in Development |
+| Cardholder app | 5180 | `dotnet run --project src/GiftCardCardholder.Web` |
+| Portal BFF and web | 5179 / 5183 | see the portal repository's README |
+
+Ports come from each repository's launch profile. The backend prints its port on
+startup; if it differs, adjust the client `ClaimBaseUrl` settings to match.
+
+### Before you start
+
+Do these once, or the journey stalls half way and it is not obvious why:
+
+1. **Enable SMTP** (step 4 above). Without it, activation links are queued but
+   never sent, and you have to read them out of the demo console instead of an
+   inbox. That still works, but it is far less convincing to watch.
+2. **Do not restart the API mid-demonstration.** Data Protection keys are
+   ephemeral, so a restart makes anything still queued undecryptable and it
+   dead-letters. Deliver first, restart later.
+3. **Have two browser profiles or a private window ready.** The staff session and
+   the recipient session are different identities; sharing one browser means
+   logging in and out repeatedly in front of an audience.
+
+### The journey
+
+**1. Bootstrap the platform.** In `/demo`, use the one-time bootstrap to create
+the first platform administrator. It works exactly once; the durable
+completion row makes every later attempt fail closed.
+
+**2. Onboard a customer.** As the platform administrator, create a customer
+organization and assign its first Company Administrator. That assignment is the
+only cross-tenant write in the system and is audited as such.
+
+**3. Fund it.** Allocate corporate credit to the customer. Watch the Ledger: the
+allocation moves value from the platform funding account to the customer's
+corporate-credit account. Nothing anywhere edits a balance column.
+
+**4. Issue and send a card.** As the Company Administrator, issue a gift card
+from inventory, then distribute it to an email address you can open. Use a
+plus-alias such as `you+demo1@gmail.com`.
+
+The activation email is queued **inside** the distribution transaction and sent
+by the dispatcher within about five seconds. The API console logs:
+
+```text
+Notification dispatch delivered 1, retrying 0, dead-lettered 0
+```
+
+If you skipped SMTP, open the link from the demo console's delivery lookup
+instead.
+
+**5. Activate as the recipient.** Open the link from the inbox. It creates the
+recipient identity and transfers ownership of the card. The link is single-use:
+opening it a second time does nothing. Receiving a card grants no organization
+membership, which is worth pointing out.
+
+**6. Share part of the balance.** In the cardholder app, split the card. The
+share reserves its amount immediately and the card's *available* balance drops
+while its *posted* balance does not. The Ledger transfer happens only when the
+recipient claims, using the 256-bit link plus the six-digit PIN.
+
+**7. Pay at a till.** In the cardholder app, request a payment credential. The
+same 60-second single-use record is shown as both a QR code and a 12-digit
+numeric code.
+
+There is no POS application yet, so drive the till side through Swagger or
+`curl`:
+
+```text
+POST /api/v1/pos/clients                        register a POS client   (platform)
+POST /api/v1/pos/clients/{id}/terminals         register a terminal     (platform)
+POST /api/v1/pos/auth/token                     exchange for a device token
+POST /api/v1/pos/payment-provisions             present the credential, hold value
+POST /api/v1/pos/payment-provisions/{id}/confirm  charge up to the held amount
+```
+
+Between the provision and the confirmation, refresh the cardholder view: the
+held amount is reserved and unspendable, but nothing has been posted to the
+Ledger yet. That gap is the whole point of a provision, and it demonstrates well.
+
+**8. Show the money.** In the portal, open the POS payment report as a platform
+operator: stores, terminals, receipts, and gross, refunded, and net totals per
+currency. Then open the organization's financial history and reconciliation. The
+reconciliation is read-only by design and never repairs anything it finds.
+
+### If something does not work
+
+| Symptom | Cause |
+| --- | --- |
+| No email, log says `retrying` | Transient SMTP failure. A wrong app password looks like this and retries eight times over roughly an hour. |
+| No email, log says `dead-lettered` | Permanent. Usually a rejected recipient address, or an expired credential. |
+| No email, no log line at all | The dispatcher is disabled, or nothing was queued because the distribution rolled back. |
+| Client refuses to start | Backend revision does not match the pinned contract. Check `contracts/README.md` in that client. |
+
+Inspect the queue directly:
+
+```sql
+select kind, channel, masked_recipient, state, attempt_count, last_failure_code
+from notifications.outbox_messages
+order by created_at_utc desc
+limit 10;
+```
+
+A delivered or dead-lettered row has no body: the credential is destroyed on
+every terminal transition, so an activation link exists at rest only while it is
+still needed.
+
+## Tests
+
+```powershell
+# Fast suites — no database required
+dotnet test tests/GiftCardPlatform.UnitTests
+dotnet test tests/GiftCardPlatform.ArchitectureTests
+```
+
+The integration suite always runs against real PostgreSQL — never EF InMemory or
+SQLite, which cannot enforce RLS, check constraints, unique indexes, or `ltree`
+columns.
+
+In PostgreSQL 18, create a **dedicated, disposable
+test database** — its module schemas are dropped and rebuilt
+on every run. Two guardrails are enforced: the database name must contain `test`,
+and the harness records a marker table in it.
+
+```powershell
+$env:PGPASSWORD = "<your PostgreSQL administrator password>"
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE giftcard_test;"
+Remove-Item Env:\PGPASSWORD
+
+# Keep this set while running integration tests. The connection must be
+# admin-capable because the harness creates roles and schemas.
+$env:GIFTCARD_TEST_CONNECTION = "Host=localhost;Port=5432;Database=giftcard_test;Username=postgres;Password=<your PostgreSQL administrator password>"
+
+dotnet test tests/GiftCardPlatform.IntegrationTests
+```
+
+The suite provisions the two roles from ADR-019, applies the real migrations as
+the migration owner, and issues API requests through the runtime application
+role. Test passwords are generated per run and never logged. If `giftcard_test`
+already exists, skip the database-creation command.
+
+### Everything
+
+```powershell
+# GIFTCARD_TEST_CONNECTION must still be set for the integration suite.
+dotnet test
+
+Remove-Item Env:\GIFTCARD_TEST_CONNECTION
+```
+
+## Solution layout
+
+```text
+src/
+  GiftCardPlatform.Api                        ASP.NET Core host, JWT endpoints, development console, background workers
+  GiftCardPlatform.BuildingBlocks             execution context, transaction coordinator, session context
+  GiftCardPlatform.Modules.Identity           users, password login, JWT sessions, refresh rotation
+  GiftCardPlatform.Modules.Organizations      organization domain, application, persistence
+  GiftCardPlatform.Modules.Authorization      roles, permissions, scoped assignments, evaluator
+  GiftCardPlatform.Modules.Audit              append-only audit records
+  GiftCardPlatform.Modules.Ledger             immutable accounts, transactions, entries, balances
+  GiftCardPlatform.Modules.CorporateCredits   allocations, reversals, balance/history queries
+  GiftCardPlatform.Modules.GiftCards          funded issuance, inventory, lifecycle/expiration, ownership/provenance
+  GiftCardPlatform.Modules.Distribution       recipient invitation/claim plus bounded durable bulk batches
+  GiftCardPlatform.Modules.Sharing            protected links, reservations, claim/cancel/expiration
+  GiftCardPlatform.Modules.Payments           QR/numeric credentials, POS identity, provisions, redemption, refunds
+  GiftCardPlatform.Modules.Notifications      transactional delivery outbox, retry/backoff, dead-lettering
+  GiftCardPlatform.Modules.Reporting          read-only financial, reconciliation, and owned-card queries
+  *.Contracts                                 each module's public surface
+tests/
+  GiftCardPlatform.UnitTests
+  GiftCardPlatform.IntegrationTests
+  GiftCardPlatform.ArchitectureTests
+infra/postgres/init/                          database role and privilege setup
+```
+
+A module may reference only another module's `.Contracts` project. Architecture
+tests enforce this, along with domain purity (no EF Core, ASP.NET Core, Redis, or
+Elasticsearch in `Domain` namespaces).

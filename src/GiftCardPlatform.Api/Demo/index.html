@@ -1,0 +1,3841 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#082b4c" />
+  <title>Gift Card Platform Console</title>
+  <style>
+    :root {
+      --navy-950: #061d33;
+      --navy-900: #082b4c;
+      --navy-800: #0d3b66;
+      --blue-600: #0077b6;
+      --blue-500: #009bd8;
+      --blue-100: #dff5fd;
+      --red-600: #d9272e;
+      --red-100: #ffe8e8;
+      --green-700: #176b45;
+      --green-100: #e5f5ec;
+      --amber-700: #8b5a00;
+      --amber-100: #fff3d6;
+      --ink: #132333;
+      --muted: #637282;
+      --line: #dce4eb;
+      --surface: #ffffff;
+      --canvas: #f3f6f8;
+      --shadow: 0 16px 42px rgba(8, 43, 76, 0.10);
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --radius-sm: 9px;
+      --sidebar: 264px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 15px/1.5 "Segoe UI", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(0, 155, 216, 0.25);
+      outline-offset: 2px;
+    }
+
+    .app-shell { min-height: 100vh; }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+      width: var(--sidebar);
+      padding: 24px 18px;
+      background:
+        radial-gradient(circle at 8% 4%, rgba(0, 155, 216, 0.28), transparent 27%),
+        linear-gradient(165deg, var(--navy-900), var(--navy-950));
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 0 6px 28px;
+    }
+
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: #fff;
+      color: var(--navy-900);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      letter-spacing: -1px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 5px;
+      background: var(--red-600);
+    }
+
+    .brand-copy strong { display: block; font-size: 15px; letter-spacing: 0.01em; }
+    .brand-copy span { color: rgba(255, 255, 255, 0.62); font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; }
+
+    .nav-label {
+      padding: 0 12px 8px;
+      color: rgba(255, 255, 255, 0.48);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .nav-list { display: grid; gap: 6px; }
+
+    .nav-item {
+      width: 100%;
+      border: 0;
+      border-radius: 11px;
+      padding: 11px 12px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.72);
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .nav-item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .nav-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; transform: translateX(2px); }
+    .nav-item.active { background: rgba(255, 255, 255, 0.14); color: #fff; font-weight: 700; }
+
+    .sidebar-foot {
+      margin-top: auto;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 13px;
+      padding: 13px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 12px;
+    }
+
+    .sidebar-foot strong { display: block; color: #fff; margin-bottom: 4px; }
+
+    .main {
+      margin-left: var(--sidebar);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      min-height: 74px;
+      padding: 14px clamp(20px, 4vw, 52px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      position: sticky;
+      top: 0;
+      z-index: 15;
+    }
+
+    .topbar-title { min-width: 0; }
+    .topbar-title h1 { margin: 0; font-size: 18px; line-height: 1.2; letter-spacing: -0.015em; }
+    .topbar-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+
+    .status-group { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #aab4bd; }
+    .status-pill.online .status-dot { background: #20a66a; box-shadow: 0 0 0 4px rgba(32, 166, 106, 0.12); }
+    .status-pill.offline .status-dot { background: var(--red-600); }
+    .status-pill.authenticated { color: var(--green-700); background: var(--green-100); border-color: #c6e7d5; }
+
+    .mobile-brand { display: none; }
+
+    .content {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: clamp(24px, 4vw, 48px);
+    }
+
+    .view { display: none; animation: rise 220ms ease both; }
+    .view.active { display: block; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue-600);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .page-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .page-heading h2 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .page-heading p {
+      margin: 12px 0 0;
+      max-width: 680px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 360px;
+      padding: clamp(28px, 5vw, 58px);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 86% 20%, rgba(0, 155, 216, 0.55), transparent 26%),
+        radial-gradient(circle at 72% 105%, rgba(217, 39, 46, 0.30), transparent 28%),
+        linear-gradient(140deg, var(--navy-950), var(--navy-800));
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -90px;
+      bottom: -190px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 42px rgba(255, 255, 255, 0.035),
+        0 0 0 84px rgba(255, 255, 255, 0.025);
+    }
+
+    .hero-content { position: relative; z-index: 2; max-width: 780px; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero-badge span { width: 8px; height: 8px; border-radius: 50%; background: #54dfa0; }
+
+    .hero h2 {
+      margin: 24px 0 14px;
+      font-size: clamp(36px, 6vw, 68px);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+      max-width: 760px;
+    }
+
+    .hero p { margin: 0; max-width: 630px; color: rgba(255, 255, 255, 0.73); font-size: 16px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+
+    .button {
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 9px 15px;
+      background: var(--navy-900);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 750;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(8, 43, 76, 0.16); }
+    .button:active { transform: translateY(0); }
+    .button:disabled { opacity: 0.55; cursor: wait; transform: none; box-shadow: none; }
+    .button.primary { background: var(--blue-600); }
+    .button.danger { background: var(--red-600); }
+    .button.soft { background: var(--blue-100); color: var(--navy-900); }
+    .button.ghost { background: transparent; color: var(--navy-900); border-color: var(--line); }
+    .hero .button.primary { background: #fff; color: var(--navy-900); }
+    .hero .button.ghost { color: #fff; border-color: rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.05); }
+    .button.small { min-height: 34px; padding: 6px 10px; font-size: 12px; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .metric {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .metric-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--blue-100); color: var(--blue-600); }
+    .metric-icon svg { width: 17px; height: 17px; }
+    .metric strong { display: block; margin-top: 18px; font-size: 25px; letter-spacing: -0.04em; }
+    .metric p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.wide-left { grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr); }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: 0 7px 24px rgba(8, 43, 76, 0.045);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 20px 22px 15px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .panel-head h3 { margin: 0; font-size: 17px; letter-spacing: -0.015em; }
+    .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .panel-body { padding: 0 22px 22px; }
+
+    .step {
+      flex: 0 0 auto;
+      min-width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      padding: 0 8px;
+      background: var(--navy-900);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #394b5d;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .optional { color: var(--muted); font-weight: 500; }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #cfd9e1;
+      border-radius: 10px;
+      padding: 9px 11px;
+      background: #fbfcfd;
+      color: var(--ink);
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    textarea { min-height: 84px; resize: vertical; }
+    input:hover, select:hover, textarea:hover { border-color: #aebecb; }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue-500); background: #fff; box-shadow: 0 0 0 3px rgba(0, 155, 216, 0.10); outline: none; }
+    input::placeholder, textarea::placeholder { color: #98a6b2; }
+    input[type="password"] { letter-spacing: 0.05em; }
+
+    .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .form-note { color: var(--muted); font-size: 11px; max-width: 440px; }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 13px;
+      border: 1px solid #c8e8f5;
+      border-radius: 11px;
+      background: #effaff;
+      color: #285368;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .notice.warning { background: var(--amber-100); border-color: #f1dba8; color: var(--amber-700); }
+    .notice svg { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; }
+
+    .result {
+      display: none;
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fbfcfd;
+    }
+
+    .result.show { display: block; }
+    .result-head { padding: 9px 12px; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; font-weight: 800; }
+    .result.ok .result-head { background: var(--green-100); color: var(--green-700); }
+    .result.error .result-head { background: var(--red-100); color: #a62429; }
+    .result pre {
+      max-height: 260px;
+      margin: 0;
+      padding: 13px;
+      overflow: auto;
+      color: #dcebf7;
+      background: #0b2439;
+      font: 11px/1.55 "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .context-bar {
+      margin-bottom: 22px;
+      padding: 16px;
+      border: 1px solid #c8e8f5;
+      border-radius: 15px;
+      background: linear-gradient(100deg, #effaff, #fff);
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+
+    .context-bar .field { flex: 1 1 440px; }
+    .context-bar label { color: var(--navy-900); }
+
+    .record-list { display: grid; gap: 9px; }
+
+    .record {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fbfcfd;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .record-main { min-width: 0; }
+    .record-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .record-main code { color: var(--muted); font: 10px/1.4 "Cascadia Code", Consolas, monospace; }
+    .record-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+
+    .empty {
+      padding: 24px 14px;
+      border: 1px dashed #cbd6de;
+      border-radius: 12px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .activity { display: grid; gap: 0; }
+
+    .activity-item {
+      position: relative;
+      padding: 0 0 18px 26px;
+      min-height: 44px;
+    }
+
+    .activity-item:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 13px;
+      bottom: 0;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .activity-dot {
+      position: absolute;
+      left: 2px;
+      top: 5px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--blue-500);
+      box-shadow: 0 0 0 4px var(--blue-100);
+    }
+
+    .activity-item.error .activity-dot { background: var(--red-600); box-shadow: 0 0 0 4px var(--red-100); }
+    .activity-item strong { display: block; font-size: 12px; }
+    .activity-item span { color: var(--muted); font-size: 10px; }
+
+    .session-card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(145deg, var(--navy-900), var(--navy-950));
+      color: #fff;
+    }
+
+    .session-card .status-pill { border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.76); }
+    .session-card h3 { margin: 22px 0 4px; font-size: 24px; letter-spacing: -0.03em; }
+    .session-card p { margin: 0; color: rgba(255, 255, 255, 0.62); font-size: 12px; }
+    .session-card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0; }
+    .session-card dt { color: rgba(255, 255, 255, 0.48); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .session-card dd { margin: 3px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+
+    .checklist { display: grid; gap: 10px; }
+    .check { display: flex; gap: 10px; align-items: flex-start; padding: 11px; border-radius: 10px; background: #f8fafb; }
+    .check-mark { width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: var(--green-100); color: var(--green-700); font-size: 11px; font-weight: 900; flex: 0 0 auto; }
+    .check strong { display: block; font-size: 12px; }
+    .check span { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+    .api-map { display: grid; gap: 8px; }
+    .api-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 9px; background: #f7f9fb; font-size: 11px; }
+    .method { font-weight: 900; color: var(--blue-600); }
+    .api-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #405467; }
+    .scope { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .toast-region {
+      position: fixed;
+      z-index: 50;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      gap: 8px;
+      width: min(380px, calc(100vw - 32px));
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: toast-in 180ms ease both;
+      pointer-events: auto;
+    }
+
+    .toast.success { border-left: 4px solid #20a66a; }
+    .toast.error { border-left: 4px solid var(--red-600); }
+    .toast strong { display: block; font-size: 12px; }
+    .toast span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .spin {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 650ms linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1120px) {
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.wide-left { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 820px) {
+      :root { --sidebar: 0px; }
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding-bottom: 72px; }
+      .topbar { min-height: 66px; padding: 10px 16px; }
+      .mobile-brand { display: flex; align-items: center; gap: 9px; }
+      .mobile-brand .brand-mark { width: 36px; height: 36px; border-radius: 10px; font-size: 12px; }
+      .topbar-title { display: none; }
+      .content { padding: 24px 16px; }
+      .page-heading { align-items: flex-start; }
+      .grid.two, .grid.three, .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .mobile-nav {
+        display: flex !important;
+        position: fixed;
+        z-index: 30;
+        inset: auto 0 0;
+        height: 66px;
+        padding: 7px 8px max(7px, env(safe-area-inset-bottom));
+        background: rgba(255, 255, 255, 0.96);
+        border-top: 1px solid var(--line);
+        backdrop-filter: blur(16px);
+        justify-content: space-around;
+      }
+      .mobile-nav .nav-item { width: auto; min-width: 44px; padding: 5px 4px; color: var(--muted); display: grid; justify-items: center; gap: 1px; font-size: 9px; }
+      .mobile-nav .nav-item svg { width: 18px; height: 18px; }
+      .mobile-nav .nav-item.active { background: var(--blue-100); color: var(--navy-900); }
+    }
+
+    @media (max-width: 560px) {
+      .status-pill.api-label { display: none; }
+      .hero { padding: 28px 22px; min-height: 400px; }
+      .hero h2 { font-size: 43px; }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .metric { padding: 15px; }
+      .metric strong { font-size: 21px; margin-top: 12px; }
+      .page-heading h2 { font-size: 32px; }
+      .panel-head, .panel-body { padding-left: 16px; padding-right: 16px; }
+      .context-bar { align-items: stretch; flex-direction: column; }
+      .record { align-items: flex-start; flex-direction: column; }
+      .record-actions { width: 100%; }
+      .record-actions .button { flex: 1; }
+      .session-card dl { grid-template-columns: 1fr; }
+      .api-row { grid-template-columns: 58px 1fr; }
+      .api-row .scope { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">GC</div>
+        <div class="brand-copy">
+          <strong>Gift Card Platform</strong>
+          <span>Phase 3 Console</span>
+        </div>
+      </div>
+
+      <div class="nav-label">Workspace</div>
+      <nav class="nav-list">
+        <button class="nav-item active" type="button" data-view-target="overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+          Overview
+        </button>
+        <button class="nav-item" type="button" data-view-target="setup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm10-12V7a4 4 0 0 0-8 0v2"/></svg>
+          Access & setup
+        </button>
+        <button class="nav-item" type="button" data-view-target="platform">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h1m4 0h1m-6 4h1m4 0h1m-6 4h6"/></svg>
+          Platform
+        </button>
+        <button class="nav-item" type="button" data-view-target="money">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18v12H3V6Zm4 4h.01M17 14h.01M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+          Money
+        </button>
+        <button class="nav-item" type="button" data-view-target="activation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7m4-5 4-4 4 4m-4-4v13m-5-4h10"/></svg>
+          Send & activate
+        </button>
+        <button class="nav-item" type="button" data-view-target="organization">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10h7v10M13 20V4h7v16M7 13h1m-1 3h1m9-9h-1m1 3h-1m1 3h-1m1 3h-1M2 20h20"/></svg>
+          Organization
+        </button>
+        <button class="nav-item" type="button" data-view-target="roles">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Roles & access
+        </button>
+        <button class="nav-item" type="button" data-view-target="session">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14v4l3 2"/></svg>
+          Session
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <strong>Development environment</strong>
+        This console calls only the public API. Authorization and validation stay on the server.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="mobile-brand">
+          <div class="brand-mark" aria-hidden="true">GC</div>
+          <strong>Phase 3</strong>
+        </div>
+        <div class="topbar-title">
+          <h1 id="viewTitle">Foundation overview</h1>
+          <p id="viewSubtitle">Identity, tenancy, authorization and audit in one demonstrable flow.</p>
+        </div>
+        <div class="status-group">
+          <div class="status-pill api-label" id="apiStatus">
+            <span class="status-dot"></span>
+            <span>API not checked</span>
+          </div>
+          <div class="status-pill" id="sessionStatus">
+            <span class="status-dot"></span>
+            <span>Signed out</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view active" id="view-overview" data-title="Foundation overview" data-subtitle="Identity, tenancy, authorization and audit in one demonstrable flow.">
+          <div class="hero">
+            <div class="hero-content">
+              <div class="hero-badge"><span></span> Phase 3 protected sharing in progress</div>
+              <h2>A secure gift-card platform, ready to show.</h2>
+              <p>
+                Bootstrap the first operator, create a customer, hand control to its Company
+                Administrator, fund and issue a card, then activate it for an email or phone
+                recipient—all through signed JWTs and PostgreSQL.
+              </p>
+              <div class="hero-actions">
+                <button class="button primary" type="button" data-view-target="setup">Start demonstration</button>
+                <button class="button ghost" type="button" data-view-target="platform">Open platform workspace</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric">
+              <div class="metric-top">
+                <span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m7 11 3 3 7-7M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/></svg></span>
+              </div>
+              <strong>247</strong>
+              <p>PostgreSQL integration checks</p>
+            </article>
+            <article class="metric">
+              <div class="metric-top">
+                <span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm10-12V7a4 4 0 0 0-8 0v2"/></svg></span>
+              </div>
+              <strong>15 min</strong>
+              <p>Signed access-token lifetime</p>
+            </article>
+            <article class="metric">
+              <div class="metric-top">
+                <span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7h-9M14 17H5m3-3-3 3 3 3m9-16 3 3-3 3"/></svg></span>
+              </div>
+              <strong>30 days</strong>
+              <p>Rotating refresh session</p>
+            </article>
+            <article class="metric">
+              <div class="metric-top">
+                <span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 8 4v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4Zm-3 9 2 2 4-4"/></svg></span>
+              </div>
+              <strong>2 layers</strong>
+              <p>Application authorization + RLS</p>
+            </article>
+          </div>
+
+          <div class="grid wide-left" style="margin-top:18px">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Recommended demonstration path</h3>
+                  <p>One clear story from a blank database to an operating customer tenant.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="checklist">
+                  <div class="check"><span class="check-mark">1</span><div><strong>Establish platform authority</strong><span>Run the one-time bootstrap, then sign in with the resulting account.</span></div></div>
+                  <div class="check"><span class="check-mark">2</span><div><strong>Create the customer boundary</strong><span>Create a root organization and a separate customer user.</span></div></div>
+                  <div class="check"><span class="check-mark">3</span><div><strong>Delegate customer administration</strong><span>Assign the initial Company Administrator with Subtree authority.</span></div></div>
+                  <div class="check"><span class="check-mark">4</span><div><strong>Switch context and prove isolation</strong><span>Sign in as the customer, select the organization, and manage its hierarchy and RBAC.</span></div></div>
+                  <div class="check"><span class="check-mark">5</span><div><strong>Fund and issue inventory</strong><span>Allocate corporate credit, then issue one ledger-backed gift card.</span></div></div>
+                  <div class="check"><span class="check-mark">6</span><div><strong>Send and activate</strong><span>Choose email or phone, open the local delivery, claim, and sign in without another message.</span></div></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Recent activity</h3>
+                  <p>Browser-local demonstration events only.</p>
+                </div>
+                <button class="button ghost small" type="button" id="clearActivity">Clear</button>
+              </div>
+              <div class="panel-body">
+                <div class="activity" id="activityList"></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-setup" data-title="Access & setup" data-subtitle="One-time bootstrap and normal JWT login.">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Identity foundation</p>
+              <h2>Begin with a trusted operator.</h2>
+              <p>The bootstrap secret establishes the first platform role exactly once. Every later interaction uses the ordinary login and token flow.</p>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <article class="panel" data-workflow="bootstrap">
+              <div class="panel-head">
+                <div><h3>Bootstrap Platform Administrator</h3><p>Use only on a new database.</p></div>
+                <span class="step">01</span>
+              </div>
+              <div class="panel-body">
+                <div class="notice warning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                  <span>The secret and password are submitted once and never saved in browser storage or activity history.</span>
+                </div>
+                <form id="bootstrapForm">
+                  <div class="form-grid">
+                    <div class="field full">
+                      <label for="bootstrapSecret">Bootstrap secret</label>
+                      <input id="bootstrapSecret" name="secret" type="password" autocomplete="off" required placeholder="Configured Bootstrap secret" />
+                    </div>
+                    <div class="field">
+                      <label for="bootstrapEmail">Administrator email</label>
+                      <input id="bootstrapEmail" name="email" type="email" autocomplete="username" required placeholder="platform.admin@example.com" />
+                    </div>
+                    <div class="field">
+                      <label for="bootstrapPassword">Password</label>
+                      <input id="bootstrapPassword" name="password" type="password" autocomplete="new-password" required placeholder="12–128 character passphrase" />
+                    </div>
+                  </div>
+                  <div class="form-actions">
+                    <span class="form-note">The PostgreSQL completion row permanently closes this operation after success.</span>
+                    <button class="button primary" type="submit">Run one-time bootstrap</button>
+                  </div>
+                </form>
+                <div class="result" id="bootstrapResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel" data-workflow="login">
+              <div class="panel-head">
+                <div><h3>Sign in</h3><p>Receive a 15-minute JWT and rotating refresh token.</p></div>
+                <span class="step">02</span>
+              </div>
+              <div class="panel-body">
+                <div class="notice">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14v4l3 2"/></svg>
+                  <span>Tokens are kept only in this browser tab's session storage and are cleared on revoke.</span>
+                </div>
+                <form id="loginForm">
+                  <div class="form-grid">
+                    <div class="field full">
+                      <label for="loginIdentifier">Email or phone number</label>
+                      <input id="loginIdentifier" name="identifier" type="text" inputmode="email" autocomplete="username" required placeholder="name@example.com or +905..." />
+                    </div>
+                    <div class="field full">
+                      <label for="loginPassword">Password</label>
+                      <input id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="Your password" />
+                    </div>
+                  </div>
+                  <div class="form-actions">
+                    <span class="form-note" id="loginHint">Staff use email. Gift-card recipients use the email or phone selected for activation.</span>
+                    <button class="button primary" type="submit">Sign in securely</button>
+                  </div>
+                </form>
+                <div class="result" id="loginResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-platform" data-title="Platform workspace" data-subtitle="Create customer boundaries and establish their first administrator." data-workspace="platform">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Platform scope</p>
+              <h2>Onboard a customer organization.</h2>
+              <p>These operations require persisted platform permissions. No customer organization context is sent.</p>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Create root organization</h3><p>Establish a new tenant boundary.</p></div><span class="step">01</span></div>
+              <div class="panel-body">
+                <form id="createOrganizationForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="organizationName">Legal/display name</label><input id="organizationName" required value="Example Customer Company" /></div>
+                    <div class="field"><label for="organizationCode">Unique code</label><input id="organizationCode" required placeholder="EXAMPLE" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Codes are normalized and uniquely enforced in PostgreSQL.</span><button class="button primary" type="submit">Create customer</button></div>
+                </form>
+                <div class="result" id="createOrganizationResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Create customer user</h3><p>Create the identity before assigning administration.</p></div><span class="step">02</span></div>
+              <div class="panel-body">
+                <form id="createUserForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="newUserEmail">Email</label><input id="newUserEmail" type="email" required placeholder="company.admin@example.com" /></div>
+                    <div class="field"><label for="newUserPassword">Temporary password</label><input id="newUserPassword" type="password" required autocomplete="new-password" placeholder="12–128 character passphrase" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">The password is sent to the API and immediately cleared from the form.</span><button class="button primary" type="submit">Create user</button></div>
+                </form>
+                <div class="result" id="createUserResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Assign initial Company Administrator</h3><p>Atomic membership, role and Subtree assignment.</p></div><span class="step">03</span></div>
+              <div class="panel-body">
+                <form id="initialAdministratorForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="initialAdminOrganizationId">Root organization ID</label><input id="initialAdminOrganizationId" required placeholder="UUID" /></div>
+                    <div class="field"><label for="initialAdminUserId">User ID</label><input id="initialAdminUserId" required placeholder="UUID" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Idempotent for the same user; a different second administrator is refused.</span><button class="button primary" type="submit">Assign administrator</button></div>
+                </form>
+                <div class="result" id="initialAdministratorResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Inspect customer</h3><p>Retrieve the root record or view its memberships.</p></div><span class="step">04</span></div>
+              <div class="panel-body">
+                <form id="inspectOrganizationForm">
+                  <div class="field"><label for="inspectOrganizationId">Organization ID</label><input id="inspectOrganizationId" required placeholder="UUID" /></div>
+                  <div class="form-actions">
+                    <span class="form-note">Platform membership viewing follows the controlled cross-tenant read path.</span>
+                    <div style="display:flex;gap:8px"><button class="button ghost" id="inspectMembershipsButton" type="button">View memberships</button><button class="button primary" type="submit">Get organization</button></div>
+                  </div>
+                </form>
+                <div class="result" id="inspectOrganizationResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="grid two" style="margin-top:18px">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Recent organizations</h3><p>Created or retrieved in this browser tab.</p></div></div>
+              <div class="panel-body"><div class="record-list" id="recentOrganizations"></div></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><div><h3>Recent users</h3><p>Identifiers only—passwords are never retained.</p></div></div>
+              <div class="panel-body"><div class="record-list" id="recentUsers"></div></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-money" data-title="Money workspace" data-subtitle="Allocate corporate value, issue funded cards, and inspect immutable history.">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Phase 2 financial foundation</p>
+              <h2>Move value through the ledger.</h2>
+              <p>Platform operators allocate corporate credit. Authorized Company Administrators turn that root-funded value into organization inventory cards backed by separate ledger accounts.</p>
+            </div>
+          </div>
+
+          <div class="context-bar">
+            <div class="field"><label for="moneyOrganizationId">Root organization ID</label><input id="moneyOrganizationId" placeholder="Customer organization UUID" /></div>
+            <div class="field"><label for="moneyReadScope">Read as</label><select id="moneyReadScope"><option value="platform">Platform operator</option><option value="organization">Organization member</option></select></div>
+            <button class="button primary" id="loadCorporateCredit" type="button">Refresh finances</button>
+          </div>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Allocate corporate credit</h3><p>Transfers value from platform funding into the customer account.</p></div><span class="step">01</span></div>
+              <div class="panel-body">
+                <form id="allocateCorporateCreditForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="creditAmount">Amount</label><input id="creditAmount" type="number" min="0.0001" step="0.0001" required value="10000.00" /></div>
+                    <div class="field"><label for="creditCurrency">Currency</label><input id="creditCurrency" minlength="3" maxlength="3" required value="TRY" /></div>
+                    <div class="field full"><label for="creditBusinessReference">Business reference</label><input id="creditBusinessReference" required placeholder="CONTRACT-2026-0042" /></div>
+                    <div class="field full"><label for="creditIdempotencyKey">Idempotency key</label><input id="creditIdempotencyKey" required placeholder="allocation-contract-2026-0042-v1" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Identical retries return the original allocation; changed intent is rejected.</span><button class="button primary" type="submit">Post allocation</button></div>
+                </form>
+                <div class="result" id="allocateCorporateCreditResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Available corporate value</h3><p>Credits minus debits, grouped by currency.</p></div></div>
+              <div class="panel-body">
+                <div class="record-list" id="creditBalanceList"><div class="empty">Choose an organization and refresh finances.</div></div>
+                <div class="result" id="creditBalanceResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Reverse an allocation</h3><p>Posts a linked compensating transaction without changing the original.</p></div><span class="step">02</span></div>
+              <div class="panel-body">
+                <form id="reverseCorporateCreditForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="reversalAllocationId">Allocation ID</label><input id="reversalAllocationId" required placeholder="Choose an allocation from history" /></div>
+                    <div class="field full"><label for="reversalReason">Reason</label><input id="reversalReason" minlength="3" maxlength="240" required value="Commercial agreement cancelled" /></div>
+                    <div class="field full"><label for="reversalIdempotencyKey">Idempotency key</label><input id="reversalIdempotencyKey" required placeholder="reversal-contract-2026-0042-v1" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">A card-spent or otherwise unavailable allocation cannot be reversed.</span><button class="button danger" type="submit">Post reversal</button></div>
+                </form>
+                <div class="result" id="reverseCorporateCreditResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Issue an inventory card</h3><p>Moves corporate value into one card account. Sign in as an organization member.</p></div><span class="step">03</span></div>
+              <div class="panel-body">
+                <form id="issueGiftCardForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="giftCardOrganizationId">Issuing organization ID</label><input id="giftCardOrganizationId" required placeholder="Root or authorized subsidiary UUID" /></div>
+                    <div class="field"><label for="giftCardAmount">Amount</label><input id="giftCardAmount" type="number" min="0.0001" step="0.0001" required value="250.00" /></div>
+                    <div class="field"><label for="giftCardCurrency">Currency</label><input id="giftCardCurrency" minlength="3" maxlength="3" required value="TRY" /></div>
+                    <div class="field full"><label for="giftCardExpiresAt">Expires at</label><input id="giftCardExpiresAt" type="datetime-local" required /></div>
+                    <div class="field"><label for="giftCardTransferable">Transferable</label><select id="giftCardTransferable"><option value="false" selected>No</option><option value="true">Yes</option></select></div>
+                    <div class="field"><label for="giftCardDivisible">Divisible</label><select id="giftCardDivisible"><option value="false" selected>No</option><option value="true">Yes</option></select></div>
+                    <div class="field full"><label for="giftCardBusinessReference">Business reference</label><input id="giftCardBusinessReference" required placeholder="EMPLOYEE-AWARD-2026-0042" /></div>
+                    <div class="field full"><label for="giftCardIdempotencyKey">Idempotency key</label><input id="giftCardIdempotencyKey" required placeholder="gift-card-employee-award-2026-0042-v1" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Validity starts at server issuance time. The display reference is not a payment credential.</span><button class="button primary" type="submit">Issue card</button></div>
+                </form>
+                <div class="result" id="issueGiftCardResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel" style="margin-top:18px">
+            <div class="panel-head"><div><h3>Immutable allocation history</h3><p>Stable cursor paging over posted business operations.</p></div><button class="button ghost small" id="loadMoreCreditHistory" type="button" disabled>Load more</button></div>
+            <div class="panel-body">
+              <div class="record-list" id="creditHistoryList"><div class="empty">No allocation history loaded.</div></div>
+              <div class="result" id="creditHistoryResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+            </div>
+          </article>
+
+          <article class="panel" style="margin-top:18px">
+            <div class="panel-head"><div><h3>Organization card inventory</h3><p>Ledger-funded cards still owned by the issuing organization.</p></div><div class="record-actions"><button class="button ghost small" id="loadGiftCardInventory" type="button">Refresh inventory</button><button class="button ghost small" id="loadMoreGiftCardInventory" type="button" disabled>Load more</button></div></div>
+            <div class="panel-body">
+              <div class="record-list" id="giftCardInventoryList"><div class="empty">No gift-card inventory loaded.</div></div>
+              <div class="result" id="giftCardInventoryResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+            </div>
+          </article>
+
+          <div class="grid two" style="margin-top:18px">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Finance & reconciliation</h3><p>Rebuild totals from authoritative records and check their Ledger links.</p></div><div class="record-actions"><button class="button ghost small" id="loadFinancialSummary" type="button">Load summary</button><button class="button primary small" id="runFinancialReconciliation" type="button">Reconcile</button></div></div>
+              <div class="panel-body">
+                <div class="notice">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14v4l3 2"/></svg>
+                  <span>Read-only reconciliation reports inconsistencies; it never changes or repairs immutable history.</span>
+                </div>
+                <div class="record-list" id="financialSummaryList"><div class="empty">Load the organization financial summary.</div></div>
+                <div class="record-list" id="financialReconciliationList" style="margin-top:9px"><div class="empty">Run reconciliation to verify domain and Ledger records.</div></div>
+                <div class="result" id="financialReportingResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Unified financial timeline</h3><p>Allocations, issuance, delivery, sharing, transfer, and lifecycle events in stable order.</p></div><div class="record-actions"><button class="button ghost small" id="loadFinancialHistory" type="button">Load history</button><button class="button ghost small" id="loadMoreFinancialHistory" type="button" disabled>Load more</button></div></div>
+              <div class="panel-body">
+                <div class="record-list" id="financialHistoryList"><div class="empty">No unified financial history loaded.</div></div>
+                <div class="result" id="financialHistoryResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel" style="margin-top:18px">
+            <div class="panel-head"><div><h3>Card lifecycle control</h3><p>Suspend, restore, cancel, or explicitly expire one card with immutable history.</p></div><span class="step">04</span></div>
+            <div class="panel-body">
+              <form id="giftCardLifecycleForm">
+                <div class="form-grid">
+                  <div class="field"><label for="giftCardLifecycleScope">Act as</label><select id="giftCardLifecycleScope"><option value="organization">Company administrator</option><option value="platform">Platform operator</option></select></div>
+                  <div class="field"><label for="giftCardLifecycleAction">Action</label><select id="giftCardLifecycleAction"><option value="suspend">Suspend</option><option value="reactivate">Reactivate</option><option value="cancel">Cancel</option><option value="expire">Expire now if due</option></select></div>
+                  <div class="field full"><label for="giftCardLifecycleOrganizationId">Organization ID <span class="optional">(company scope)</span></label><input id="giftCardLifecycleOrganizationId" placeholder="Issuing organization UUID" /></div>
+                  <div class="field full"><label for="giftCardLifecycleId">Gift-card ID</label><input id="giftCardLifecycleId" required placeholder="Select a card or paste its UUID" /></div>
+                  <div class="field full"><label for="giftCardLifecycleReason">Reason</label><input id="giftCardLifecycleReason" minlength="3" maxlength="500" required value="Customer service lifecycle request" /></div>
+                  <div class="field full"><label for="giftCardLifecycleIdempotencyKey">Idempotency key</label><input id="giftCardLifecycleIdempotencyKey" required placeholder="lifecycle-command-0042-v1" /></div>
+                </div>
+                <div class="form-actions">
+                  <span class="form-note">Company cancellation ends at recipient claim. The platform operator can emergency-cancel later; terminal value returns once to the funding root.</span>
+                  <div style="display:flex;gap:8px"><button class="button ghost" id="loadGiftCardLifecycleHistory" type="button">Load history</button><button class="button primary" type="submit">Apply action</button></div>
+                </div>
+              </form>
+              <div class="record-list" id="giftCardLifecycleHistoryList"><div class="empty">Choose a card to inspect lifecycle history.</div></div>
+              <div class="result" id="giftCardLifecycleResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="view" id="view-activation" data-title="Send & activate" data-subtitle="Deliver one card or an atomic batch by email or phone, then claim without moving value.">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Recipient activation</p>
+              <h2>From corporate value to one or many people.</h2>
+              <p>An authorized company user can send one inventory card or issue and distribute up to 100 cards atomically. Each recipient activates once, then signs in normally with a password and the existing JWT session.</p>
+            </div>
+          </div>
+
+          <div class="notice" style="margin-bottom:18px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14v4l3 2"/></svg>
+            <span>Email or SMS is sent only for activation. Ordinary sign-in and refresh do not send another message or create another delivery cost.</span>
+          </div>
+
+          <div class="context-bar">
+            <div class="field"><label for="distributionOrganizationId">Active organization ID</label><input id="distributionOrganizationId" placeholder="Company organization UUID" /></div>
+            <button class="button primary" id="saveDistributionContext" type="button">Use this context</button>
+          </div>
+
+          <article class="panel" style="margin-bottom:18px">
+            <div class="panel-head"><div><h3>Issue & send a bounded batch</h3><p>One synchronous, all-or-nothing operation for up to 100 recipients.</p></div><span class="step">Bulk</span></div>
+            <div class="panel-body">
+              <form id="bulkGiftCardBatchForm">
+                <div class="form-grid">
+                  <div class="field"><label for="bulkBatchAmount">Value per recipient</label><input id="bulkBatchAmount" type="number" min="0.0001" step="0.0001" required value="100.00" /></div>
+                  <div class="field"><label for="bulkBatchCurrency">Currency</label><input id="bulkBatchCurrency" minlength="3" maxlength="3" required value="TRY" /></div>
+                  <div class="field full"><label for="bulkBatchExpiresAt">Cards expire at</label><input id="bulkBatchExpiresAt" type="datetime-local" required /></div>
+                  <div class="field full"><label for="bulkBatchRecipients">Recipients <span class="optional">(one email or E.164 phone per line)</span></label><textarea id="bulkBatchRecipients" required placeholder="ayse@example.com&#10;+905551234567&#10;mehmet@example.com"></textarea></div>
+                  <div class="field full"><label for="bulkBatchReference">Batch reference</label><input id="bulkBatchReference" required placeholder="SUMMER-AWARD-2026" /></div>
+                  <div class="field full"><label for="bulkBatchIdempotencyKey">Idempotency key</label><input id="bulkBatchIdempotencyKey" required placeholder="bulk-summer-award-2026-v1" /></div>
+                  <div class="field full"><label for="bulkBatchId">Batch ID <span class="optional">(filled after creation; paste one to reload)</span></label><input id="bulkBatchId" placeholder="Completed batch UUID" /></div>
+                </div>
+                <div class="form-actions">
+                  <span class="form-note">Every card, Ledger posting, invitation, audit row, and activation delivery succeeds together or none are retained.</span>
+                  <div style="display:flex;gap:8px"><button class="button ghost" id="loadBulkGiftCardBatch" type="button">Load batch</button><button class="button primary" type="submit">Issue & send batch</button></div>
+                </div>
+              </form>
+              <div class="record-list" id="bulkGiftCardBatchList"><div class="empty">Create or load a batch to see item-level results.</div></div>
+              <div class="result" id="bulkGiftCardBatchResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+            </div>
+          </article>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Send an inventory card</h3><p>Choose exactly one recipient channel and create a single-use invitation.</p></div><span class="step">01</span></div>
+              <div class="panel-body">
+                <form id="distributeGiftCardForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="distributionGiftCardId">Gift-card ID</label><input id="distributionGiftCardId" required placeholder="Choose an eligible card from inventory" /></div>
+                    <div class="field"><label for="recipientContactType">Delivery channel</label><select id="recipientContactType"><option value="Email">Email</option><option value="Phone">Phone / SMS</option></select></div>
+                    <div class="field"><label for="recipientContact">Recipient email</label><input id="recipientContact" type="email" inputmode="email" autocomplete="off" required placeholder="recipient@example.com" /></div>
+                    <div class="field full"><label for="distributionBusinessReference">Business reference</label><input id="distributionBusinessReference" required placeholder="EMPLOYEE-AWARD-DELIVERY-0042" /></div>
+                    <div class="field full"><label for="distributionIdempotencyKey">Idempotency key</label><input id="distributionIdempotencyKey" required placeholder="distribution-employee-award-0042-v1" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">The raw activation secret is never stored, logged, or returned by this operation.</span><button class="button primary" type="submit">Send one activation</button></div>
+                </form>
+                <div class="result" id="distributeGiftCardResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Development delivery viewer</h3><p>Local substitute for a real email or SMS provider.</p></div><span class="step">02</span></div>
+              <div class="panel-body">
+                <div class="notice warning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                  <span>This viewer exists only in Development. Staging and Production do not expose the delivery lookup endpoint.</span>
+                </div>
+                <div class="field"><label for="distributionInvitationId">Invitation ID</label><input id="distributionInvitationId" placeholder="Filled after distribution" /></div>
+                <div class="form-actions"><span class="form-note">The link expires and can activate only its exact invitation.</span><button class="button ghost" id="loadClaimDelivery" type="button">Load local delivery</button></div>
+                <div class="record-list" id="claimDeliveryList"><div class="empty">Send a card to capture a local activation delivery.</div></div>
+                <div class="result" id="claimDeliveryResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Claim and activate</h3><p>The recipient completes this anonymous, rate-limited step once.</p></div><span class="step">03</span></div>
+              <div class="panel-body">
+                <form id="claimGiftCardForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="claimToken">Activation token</label><textarea id="claimToken" required autocomplete="off" placeholder="Loaded from the development delivery link"></textarea></div>
+                    <div class="field full"><label for="claimPassword">Password <span class="optional">(only required for a new recipient account)</span></label><input id="claimPassword" type="password" autocomplete="new-password" placeholder="12-128 character passphrase" /></div>
+                    <div class="field full"><label for="claimIdempotencyKey">Idempotency key</label><input id="claimIdempotencyKey" required placeholder="claim-invitation-0042-v1" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">An existing matching account keeps its current password. A claim never creates company membership.</span><button class="button primary" type="submit">Activate gift card</button></div>
+                </form>
+                <div class="result" id="claimGiftCardResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>What remains unchanged</h3><p>Activation changes ownership, not money.</p></div></div>
+              <div class="panel-body">
+                <div class="checklist">
+                  <div class="check"><span class="check-mark">1</span><div><strong>Ledger value stays put</strong><span>No new entry or balance movement is created by distribution or claim.</span></div></div>
+                  <div class="check"><span class="check-mark">2</span><div><strong>Recipient is not staff</strong><span>The identity receives no company membership or organization permission.</span></div></div>
+                  <div class="check"><span class="check-mark">3</span><div><strong>Contact choice is exact</strong><span>Each recipient account uses either one email or one E.164 phone number.</span></div></div>
+                  <div class="check"><span class="check-mark">4</span><div><strong>Normal sessions are reused</strong><span>15-minute access tokens and rotating 30-day refresh tokens avoid repeated messages.</span></div></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>My cards</h3><p>The signed-in recipient sees only cards they currently own and each Ledger-derived balance.</p></div><div class="record-actions"><button class="button ghost small" id="loadMyGiftCards" type="button">Load my cards</button><button class="button ghost small" id="loadMoreMyGiftCards" type="button" disabled>Load more</button></div></div>
+              <div class="panel-body">
+                <div class="record-list" id="myGiftCardList"><div class="empty">Sign in as a recipient to load owned cards.</div></div>
+                <div class="record-list" id="myGiftCardDetailList" style="margin-top:9px"><div class="empty">Choose an owned card for detail and full history.</div></div>
+                <div class="form-actions">
+                  <span class="form-note">Financial, distribution, and lifecycle events share one stable cursor timeline.</span>
+                  <button class="button ghost" id="loadMoreMyGiftCardHistory" type="button" disabled>Load more history</button>
+                </div>
+                <div class="record-list" id="myGiftCardFinancialHistoryList"><div class="empty">No owned-card financial history loaded.</div></div>
+                <div class="result" id="myGiftCardsResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Cardholder safety controls</h3><p>After signing in, the exact owner can suspend or reactivate a claimed card.</p></div><span class="step">04</span></div>
+              <div class="panel-body">
+                <div class="field"><label for="ownedGiftCardId">Owned gift-card ID</label><input id="ownedGiftCardId" placeholder="Filled after activation or paste a claimed card UUID" /></div>
+                <div class="form-actions">
+                  <span class="form-note">Self-service cannot cancel value. Company and platform controls remain separate.</span>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button danger" id="suspendOwnedGiftCard" type="button">Suspend</button><button class="button soft" id="reactivateOwnedGiftCard" type="button">Reactivate</button><button class="button ghost" id="loadOwnedGiftCardHistory" type="button">Load history</button></div>
+                </div>
+                <div class="record-list" id="ownedGiftCardHistoryList"><div class="empty">Sign in as the recipient and choose a claimed card.</div></div>
+                <div class="result" id="ownedGiftCardLifecycleResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Create protected share</h3><p>Reserve part of a transferable, divisible card for 24 hours.</p></div><span class="step">Share</span></div>
+              <div class="panel-body">
+                <div class="notice warning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                  <span>The link and six-digit PIN are returned once. Share them through separate trusted channels.</span>
+                </div>
+                <form id="createProtectedShareForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="shareSourceGiftCardId">Owned source card ID</label><input id="shareSourceGiftCardId" required placeholder="Choose a transferable, divisible card" /></div>
+                    <div class="field"><label for="shareAmount">Amount</label><input id="shareAmount" type="number" min="0.0001" step="0.0001" required value="25.00" /></div>
+                    <div class="field"><label for="shareCreateIdempotencyKey">Idempotency key</label><input id="shareCreateIdempotencyKey" required /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Posted balance stays on the source until claim; reserved value cannot be shared twice.</span><button class="button primary" type="submit">Create link & PIN</button></div>
+                </form>
+                <div class="result" id="createProtectedShareResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Claim protected share</h3><p>A different, already signed-in recipient claims into a separate child card.</p></div><span class="step">Claim</span></div>
+              <div class="panel-body">
+                <form id="claimProtectedShareForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="shareClaimToken">Claim token</label><textarea id="shareClaimToken" required autocomplete="off" placeholder="Token from the protected link"></textarea></div>
+                    <div class="field"><label for="sharePin">Six-digit PIN</label><input id="sharePin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required /></div>
+                    <div class="field"><label for="shareClaimIdempotencyKey">Idempotency key</label><input id="shareClaimIdempotencyKey" required /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Five wrong PIN attempts permanently lock the share. The claim posts one balanced Ledger transfer.</span><button class="button primary" type="submit">Claim shared value</button></div>
+                </form>
+                <div class="result" id="claimProtectedShareResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Send direct invitation</h3><p>Bind a share to one verified email or phone contact.</p></div><span class="step">Direct</span></div>
+              <div class="panel-body">
+                <div class="notice info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4zM4 6l8 6 8-6"/></svg>
+                  <span>The reservation commits before delivery. Only the masked contact appears in the response and audit.</span>
+                </div>
+                <form id="createDirectShareForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="directShareSourceGiftCardId">Owned source card ID</label><input id="directShareSourceGiftCardId" required placeholder="Choose a transferable, divisible card" /></div>
+                    <div class="field"><label for="directShareAmount">Amount</label><input id="directShareAmount" type="number" min="0.0001" step="0.0001" required value="15.00" /></div>
+                    <div class="field"><label for="directShareContactType">Contact type</label><select id="directShareContactType"><option value="Email">Email</option><option value="Phone">Phone</option></select></div>
+                    <div class="field full"><label for="directShareRecipientContact">Recipient email or E.164 phone</label><input id="directShareRecipientContact" required autocomplete="off" placeholder="recipient@example.com" /></div>
+                    <div class="field full"><label for="directShareCreateIdempotencyKey">Idempotency key</label><input id="directShareCreateIdempotencyKey" required /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Development captures the notification link after commit; production email/SMS remains a deployment integration.</span><button class="button primary" type="submit">Send invitation</button></div>
+                </form>
+                <div class="result" id="createDirectShareResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Activate direct invitation</h3><p>A new contact chooses a password; an existing contact continues through normal login.</p></div><span class="step">Activate</span></div>
+              <div class="panel-body">
+                <form id="claimDirectShareForm">
+                  <div class="form-grid">
+                    <div class="field full"><label for="directShareClaimToken">Invitation token</label><textarea id="directShareClaimToken" required autocomplete="off" placeholder="Captured from Development delivery"></textarea></div>
+                    <div class="field"><label for="directSharePassword">Password for a new identity</label><input id="directSharePassword" type="password" autocomplete="new-password" placeholder="Leave blank for an existing identity" /></div>
+                    <div class="field"><label for="directShareClaimIdempotencyKey">Idempotency key</label><input id="directShareClaimIdempotencyKey" required /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">New identities receive a session. Existing identities receive the card but must sign in normally.</span><button class="button primary" type="submit">Activate shared value</button></div>
+                </form>
+                <div class="result" id="claimDirectShareResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>My protected shares</h3><p>Review shares sent or received by the signed-in identity.</p></div><button class="button ghost small" id="loadMyShares" type="button">Refresh</button></div>
+              <div class="panel-body">
+                <div class="form-grid" style="margin-bottom:12px">
+                  <div class="field"><label for="myShareDirection">Direction</label><select id="myShareDirection"><option value="">Sent and received</option><option value="Sent">Sent</option><option value="Received">Received</option></select></div>
+                  <div class="field"><label for="myShareKind">Kind</label><select id="myShareKind"><option value="">All kinds</option><option value="ProtectedLink">Protected link</option><option value="DirectInvitation">Direct invitation</option></select></div>
+                  <div class="field full"><label for="myShareState">State</label><select id="myShareState"><option value="">All states</option><option value="Pending">Pending</option><option value="Claimed">Claimed</option><option value="Cancelled">Cancelled</option><option value="Expired">Expired</option><option value="Locked">Locked</option></select></div>
+                </div>
+                <div class="record-list" id="myShareList"><div class="empty">Create or receive a protected share to see it here.</div></div>
+                <div class="field" style="margin-top:12px"><label for="cancelShareId">Pending share ID</label><input id="cancelShareId" placeholder="Choose a sent share to cancel" /></div>
+                <div class="form-actions"><span class="form-note">Only the sender can cancel before claim; cancellation releases the reservation without a Ledger posting.</span><button class="button danger" id="cancelProtectedShare" type="button">Cancel pending share</button></div>
+                <div class="result" id="mySharesResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-organization" data-title="Organization workspace" data-subtitle="Operate inside a verified membership and customer boundary." data-workspace="organization">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Customer scope</p>
+              <h2>Manage the customer hierarchy.</h2>
+              <p>The selected organization is sent as a requested context. The server accepts it only when the JWT subject has an active membership there.</p>
+            </div>
+          </div>
+
+          <div class="context-bar">
+            <div class="field"><label for="activeOrganizationId">Active organization ID</label><input id="activeOrganizationId" placeholder="Root organization UUID" /></div>
+            <button class="button primary" id="saveOrganizationContext" type="button">Use this context</button>
+          </div>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Create subsidiary</h3><p>Add one direct child beneath the active organization.</p></div></div>
+              <div class="panel-body">
+                <form id="createSubsidiaryForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="subsidiaryName">Name</label><input id="subsidiaryName" required value="Example Regional Subsidiary" /></div>
+                    <div class="field"><label for="subsidiaryCode">Code</label><input id="subsidiaryCode" required placeholder="REGION-01" /></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Depth and code invariants are enforced server-side.</span><button class="button primary" type="submit">Create subsidiary</button></div>
+                </form>
+                <div class="result" id="createSubsidiaryResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Direct subsidiaries</h3><p>View the first page beneath the active organization.</p></div><button class="button ghost small" id="loadSubsidiaries" type="button">Refresh list</button></div>
+              <div class="panel-body">
+                <div class="record-list" id="subsidiaryList"><div class="empty">Choose a context and load subsidiaries.</div></div>
+                <div class="result" id="listSubsidiariesResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Add membership</h3><p>Connect an existing global user to this organization.</p></div></div>
+              <div class="panel-body">
+                <form id="createMembershipForm">
+                  <div class="field"><label for="membershipUserId">User ID</label><input id="membershipUserId" required placeholder="Existing user UUID" /></div>
+                  <div class="form-actions"><span class="form-note">A user account and a membership have separate lifecycles.</span><button class="button primary" type="submit">Add membership</button></div>
+                </form>
+                <div class="result" id="createMembershipResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Memberships</h3><p>List or disable organization access.</p></div><button class="button ghost small" id="loadMemberships" type="button">Refresh list</button></div>
+              <div class="panel-body">
+                <div class="record-list" id="membershipList"><div class="empty">Choose a context and load memberships.</div></div>
+                <div class="result" id="listMembershipsResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-roles" data-title="Roles & access" data-subtitle="Define organization roles, grant known permissions and assign explicit scope.">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Hierarchy-aware RBAC</p>
+              <h2>Shape access without widening tenancy.</h2>
+              <p>Roles carry permissions; assignments carry scope. The caller can grant only permissions they already hold.</p>
+            </div>
+          </div>
+
+          <div class="context-bar">
+            <div class="field"><label for="rolesOrganizationId">Active organization ID</label><input id="rolesOrganizationId" placeholder="Uses the organization workspace context" /></div>
+            <button class="button primary" id="saveRolesContext" type="button">Use this context</button>
+          </div>
+
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-head"><div><h3>Create role</h3><p>Define a reusable organization role.</p></div></div>
+              <div class="panel-body">
+                <form id="createRoleForm">
+                  <div class="field"><label for="roleName">Role name</label><input id="roleName" required placeholder="HR Operations" /></div>
+                  <div class="form-actions"><span class="form-note">Scope is selected later, on assignment.</span><button class="button primary" type="submit">Create role</button></div>
+                </form>
+                <div class="result" id="createRoleResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Organization roles</h3><p>View roles and current permission grants.</p></div><button class="button ghost small" id="loadRoles" type="button">Refresh list</button></div>
+              <div class="panel-body">
+                <div class="record-list" id="roleList"><div class="empty">Choose a context and load roles.</div></div>
+                <div class="result" id="listRolesResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Grant permissions</h3><p>Comma-separated known organization permissions.</p></div></div>
+              <div class="panel-body">
+                <form id="grantPermissionsForm">
+                  <div class="field"><label for="grantRoleId">Role ID</label><input id="grantRoleId" required placeholder="Role UUID" /></div>
+                  <div class="field" style="margin-top:12px"><label for="permissionNames">Permissions</label><textarea id="permissionNames" required placeholder="organization.view, organization.memberships.view"></textarea></div>
+                  <div class="form-actions"><span class="form-note">Platform permissions cannot be granted to organization roles.</span><button class="button primary" type="submit">Grant permissions</button></div>
+                </form>
+                <div class="result" id="grantPermissionsResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head"><div><h3>Assign role</h3><p>Bind a membership, role and hierarchy scope.</p></div></div>
+              <div class="panel-body">
+                <form id="assignRoleForm">
+                  <div class="form-grid">
+                    <div class="field"><label for="assignMembershipId">Membership ID</label><input id="assignMembershipId" required placeholder="UUID" /></div>
+                    <div class="field"><label for="assignRoleId">Role ID</label><input id="assignRoleId" required placeholder="UUID" /></div>
+                    <div class="field"><label for="assignScope">Scope</label><select id="assignScope"><option>Organization</option><option>Subtree</option><option>SelectedOrganizations</option></select></div>
+                    <div class="field"><label for="anchorOrganizationId">Anchor organization <span class="optional">(optional)</span></label><input id="anchorOrganizationId" placeholder="Defaults to active organization" /></div>
+                    <div class="field full"><label for="selectedOrganizationIds">Selected organization IDs <span class="optional">(SelectedOrganizations only)</span></label><textarea id="selectedOrganizationIds" placeholder="Comma-separated UUIDs"></textarea></div>
+                  </div>
+                  <div class="form-actions"><span class="form-note">Parent ownership alone grants no access.</span><button class="button primary" type="submit">Assign scoped role</button></div>
+                </form>
+                <div class="result" id="assignRoleResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-session" data-title="Session controls" data-subtitle="Inspect token timing, rotate refresh credentials or revoke the session.">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Authentication session</p>
+              <h2>Short access. Safe rotation.</h2>
+              <p>Access tokens expire quickly. Refresh credentials rotate exactly once, and reuse detection revokes the token family.</p>
+            </div>
+          </div>
+
+          <div class="grid wide-left">
+            <article class="session-card">
+              <div class="status-pill"><span class="status-dot"></span><span id="sessionCardState">No active session</span></div>
+              <h3 id="sessionEmail">Not signed in</h3>
+              <p id="sessionCountdown">Sign in to begin a JWT session.</p>
+              <dl>
+                <div><dt>Access expires</dt><dd id="accessExpiry">—</dd></div>
+                <div><dt>Refresh expires</dt><dd id="refreshExpiry">—</dd></div>
+                <div><dt>Active organization</dt><dd id="sessionOrganization">Platform scope / none</dd></div>
+                <div><dt>Storage</dt><dd>Current browser tab only</dd></div>
+              </dl>
+              <div style="display:flex;gap:9px;flex-wrap:wrap">
+                <button class="button primary" id="refreshSession" type="button">Rotate refresh token</button>
+                <button class="button danger" id="revokeSession" type="button">Revoke & sign out</button>
+              </div>
+              <div class="result" id="sessionResult" aria-live="polite"><div class="result-head"></div><pre></pre></div>
+            </article>
+
+            <div class="grid">
+              <article class="panel">
+                <div class="panel-head"><div><h3>Security properties demonstrated</h3><p>What this browser flow proves about the backend.</p></div></div>
+                <div class="panel-body">
+                  <div class="checklist">
+                    <div class="check"><span class="check-mark">✓</span><div><strong>Signed bearer identity</strong><span>No caller-selected user or permission headers.</span></div></div>
+                    <div class="check"><span class="check-mark">✓</span><div><strong>Persisted authority</strong><span>Platform roles and organization assignments resolve from PostgreSQL.</span></div></div>
+                    <div class="check"><span class="check-mark">✓</span><div><strong>Rotating credentials</strong><span>Only refresh-token hashes are stored server-side.</span></div></div>
+                    <div class="check"><span class="check-mark">✓</span><div><strong>Tenant isolation</strong><span>Active membership checks and PostgreSQL RLS protect organization rows.</span></div></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head"><div><h3>Public API map</h3><p>The console has no private backend shortcut.</p></div></div>
+                <div class="panel-body">
+                  <div class="api-map">
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/auth/login</code><span class="scope">anonymous</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations</code><span class="scope">platform</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/initial-administrator</code><span class="scope">platform</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/subsidiaries</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/roles/assignments</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/corporate-credits/allocations</code><span class="scope">platform</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/corporate-credits/allocations/{id}/reversal</code><span class="scope">platform</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/corporate-credits/balances</code><span class="scope">platform / organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/gift-cards/</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/gift-cards/inventory</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/gift-cards/{cardId}/lifecycle/{action}</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/platform/gift-cards/{cardId}/lifecycle/{action}</code><span class="scope">platform</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/me/gift-cards/{cardId}/lifecycle/{action}</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/gift-cards/{cardId}/distributions/</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/organizations/{id}/gift-card-batches/</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/gift-card-batches/{batchId}</code><span class="scope">organization</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/gift-card-claims</code><span class="scope">anonymous</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/reports/financial-summary</code><span class="scope">platform / organization</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/reports/financial-history</code><span class="scope">platform / organization</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/reports/reconciliation</code><span class="scope">platform / organization</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/me/gift-cards</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/me/gift-cards/{cardId}/history</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/me/gift-cards/{cardId}/shares</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/me/shares</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/share-claims</code><span class="scope">authenticated recipient</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/me/gift-cards/{cardId}/share-invitations</code><span class="scope">cardholder</span></div>
+                    <div class="api-row"><span class="method">POST</span><code>/api/v1/share-invitation-claims</code><span class="scope">verified contact</span></div>
+                    <div class="api-row"><span class="method">GET</span><code>/api/v1/organizations/{id}/audit-records</code><span class="scope">platform / organization</span></div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <nav class="mobile-nav" style="display:none" aria-label="Mobile navigation">
+      <button class="nav-item active" type="button" data-view-target="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg><span>Home</span></button>
+      <button class="nav-item" type="button" data-view-target="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm10-12V7a4 4 0 0 0-8 0v2"/></svg><span>Access</span></button>
+      <button class="nav-item" type="button" data-view-target="platform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h1m4 0h1m-6 4h1m4 0h1"/></svg><span>Platform</span></button>
+      <button class="nav-item" type="button" data-view-target="money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18v12H3V6Zm4 4h.01M17 14h.01M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg><span>Money</span></button>
+      <button class="nav-item" type="button" data-view-target="activation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7m4-5 4-4 4 4m-4-4v13"/></svg><span>Activate</span></button>
+      <button class="nav-item" type="button" data-view-target="organization"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10h7v10M13 20V4h7v16M2 20h20"/></svg><span>Customer</span></button>
+      <button class="nav-item" type="button" data-view-target="session"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-14v4l3 2"/></svg><span>Session</span></button>
+    </nav>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "giftcard.phase2.console.session.v2";
+    const $ = (id) => document.getElementById(id);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    const state = {
+      accessToken: "",
+      refreshToken: "",
+      accessTokenExpiresAtUtc: "",
+      refreshTokenExpiresAtUtc: "",
+      loginIdentifier: "",
+      activeOrganizationId: "",
+      recentOrganizations: [],
+      recentUsers: [],
+      activity: [],
+    };
+    let creditHistoryCursor = null;
+    let creditHistoryItems = [];
+    let giftCardInventoryCursor = null;
+    let giftCardInventoryItems = [];
+    let financialHistoryCursor = null;
+    let financialHistoryItems = [];
+    let myGiftCardCursor = null;
+    let myGiftCardItems = [];
+    let selectedMyGiftCardId = "";
+    let myGiftCardHistoryCursor = null;
+    let myGiftCardHistoryItems = [];
+
+    class ApiError extends Error {
+      constructor(response, body) {
+        const detail = body?.detail || body?.title || response.statusText || "Request failed";
+        super(detail);
+        this.name = "ApiError";
+        this.status = response.status;
+        this.body = body;
+        this.correlationId =
+          body?.correlationId ||
+          response.headers.get("X-Correlation-Id") ||
+          response.headers.get("X-Request-Id") ||
+          "";
+      }
+    }
+
+    function restoreState() {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}");
+        for (const key of Object.keys(state)) {
+          if (saved[key] !== undefined) state[key] = saved[key];
+        }
+      } catch {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function persistState() {
+      // Bootstrap secrets and password fields are deliberately absent from state.
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function clearSession() {
+      state.accessToken = "";
+      state.refreshToken = "";
+      state.accessTokenExpiresAtUtc = "";
+      state.refreshTokenExpiresAtUtc = "";
+      state.loginIdentifier = "";
+      persistState();
+      updateSessionUi();
+    }
+
+    function uniqueCode(prefix) {
+      const value = crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
+      return prefix + value;
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function shortId(value) {
+      if (!value) return "—";
+      return value.length > 18 ? value.slice(0, 8) + "…" + value.slice(-6) : value;
+    }
+
+    function splitValues(value) {
+      return value
+        .split(/[,\n;]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    function safeText(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function readBody(response) {
+      const text = await response.text();
+      if (!text) return null;
+      try { return JSON.parse(text); }
+      catch { return { detail: text }; }
+    }
+
+    async function api(path, options = {}) {
+      const {
+        method = "GET",
+        body,
+        scope = "platform",
+        auth = true,
+        bootstrapSecret,
+      } = options;
+
+      const headers = { Accept: "application/json" };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (auth) {
+        if (!state.accessToken) throw new Error("Sign in before calling an authenticated endpoint.");
+        headers.Authorization = "Bearer " + state.accessToken;
+      }
+      if (scope === "organization") {
+        if (!state.activeOrganizationId) throw new Error("Select an active organization first.");
+        headers["X-Organization-Id"] = state.activeOrganizationId;
+      }
+      if (bootstrapSecret !== undefined) {
+        headers["X-Platform-Bootstrap-Secret"] = bootstrapSecret;
+      }
+
+      let response;
+      try {
+        response = await fetch(path, {
+          method,
+          headers,
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      } catch (error) {
+        setApiStatus(false, "API unreachable");
+        throw error;
+      }
+
+      setApiStatus(true, "API connected");
+      const responseBody = await readBody(response);
+      if (!response.ok) throw new ApiError(response, responseBody);
+      return { response, body: responseBody };
+    }
+
+    function setApiStatus(online, label) {
+      const el = $("apiStatus");
+      el.classList.toggle("online", online);
+      el.classList.toggle("offline", !online);
+      el.querySelector("span:last-child").textContent = label;
+    }
+
+    function showResult(id, ok, status, body, correlationId = "") {
+      const result = $(id);
+      result.className = "result show " + (ok ? "ok" : "error");
+      result.querySelector(".result-head").innerHTML =
+        "<span>" + safeText(status) + "</span>" +
+        (correlationId ? "<span>Correlation " + safeText(shortId(correlationId)) + "</span>" : "");
+      result.querySelector("pre").textContent =
+        typeof body === "string" ? body : JSON.stringify(body ?? {}, null, 2);
+    }
+
+    function showError(resultId, error) {
+      const isApi = error instanceof ApiError;
+      const label = isApi ? error.status + " · Request refused" : "Request could not be completed";
+      const body = isApi
+        ? {
+            code: error.body?.code,
+            detail: error.message,
+            itemIndex: error.body?.itemIndex,
+            itemReference: error.body?.itemReference,
+            causeCode: error.body?.causeCode,
+            correlationId: error.correlationId || undefined,
+          }
+        : { detail: error.message || String(error) };
+      showResult(resultId, false, label, body, error.correlationId || "");
+      addActivity("Request refused", error.message || String(error), "error");
+      toast("Request refused", error.message || String(error), "error");
+    }
+
+    async function withBusy(button, action) {
+      const original = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<span class="spin" aria-hidden="true"></span> Working';
+      try { return await action(); }
+      finally {
+        button.disabled = false;
+        button.innerHTML = original;
+      }
+    }
+
+    function toast(title, detail, kind = "success") {
+      const el = document.createElement("div");
+      el.className = "toast " + kind;
+      el.innerHTML = "<div><strong>" + safeText(title) + "</strong><span>" + safeText(detail) + "</span></div>";
+      $("toastRegion").appendChild(el);
+      window.setTimeout(() => el.remove(), 4200);
+    }
+
+    function addActivity(title, detail, kind = "success") {
+      state.activity.unshift({
+        title,
+        detail,
+        kind,
+        at: new Date().toISOString(),
+      });
+      state.activity = state.activity.slice(0, 12);
+      persistState();
+      renderActivity();
+    }
+
+    function renderActivity() {
+      const list = $("activityList");
+      if (!state.activity.length) {
+        list.innerHTML = '<div class="empty">Actions taken in this console will appear here.</div>';
+        return;
+      }
+      list.innerHTML = state.activity.map((item) =>
+        '<div class="activity-item ' + (item.kind === "error" ? "error" : "") + '">' +
+          '<span class="activity-dot"></span>' +
+          '<strong>' + safeText(item.title) + '</strong>' +
+          '<span>' + safeText(item.detail) + ' · ' + safeText(formatDate(item.at)) + '</span>' +
+        '</div>'
+      ).join("");
+    }
+
+    function addRecentOrganization(organization) {
+      const normalized = {
+        id: organization.id,
+        name: organization.name || "Customer organization",
+        code: organization.code || "",
+      };
+      state.recentOrganizations = [
+        normalized,
+        ...state.recentOrganizations.filter((item) => item.id !== normalized.id),
+      ].slice(0, 8);
+      persistState();
+      renderRecentRecords();
+    }
+
+    function addRecentUser(user) {
+      const normalized = { id: user.id, email: user.email || "User" };
+      state.recentUsers = [
+        normalized,
+        ...state.recentUsers.filter((item) => item.id !== normalized.id),
+      ].slice(0, 8);
+      persistState();
+      renderRecentRecords();
+    }
+
+    function recordHtml(type, id, title, subtitle) {
+      return '<div class="record">' +
+        '<div class="record-main"><strong>' + safeText(title) + '</strong><code>' + safeText(id) +
+        (subtitle ? ' · ' + safeText(subtitle) : '') + '</code></div>' +
+        '<div class="record-actions">' +
+          '<button class="button ghost small" type="button" data-copy="' + safeText(id) + '">Copy ID</button>' +
+          '<button class="button soft small" type="button" data-use-' + type + '="' + safeText(id) + '">Use</button>' +
+        '</div></div>';
+    }
+
+    function renderRecentRecords() {
+      $("recentOrganizations").innerHTML = state.recentOrganizations.length
+        ? state.recentOrganizations.map((item) => recordHtml("organization", item.id, item.name, item.code)).join("")
+        : '<div class="empty">No organization used in this tab yet.</div>';
+
+      $("recentUsers").innerHTML = state.recentUsers.length
+        ? state.recentUsers.map((item) => recordHtml("user", item.id, item.email, "")).join("")
+        : '<div class="empty">No user created in this tab yet.</div>';
+    }
+
+    function useOrganization(id) {
+      state.activeOrganizationId = id;
+      $("activeOrganizationId").value = id;
+      $("rolesOrganizationId").value = id;
+      $("moneyOrganizationId").value = id;
+      $("giftCardOrganizationId").value = id;
+      $("giftCardLifecycleOrganizationId").value = id;
+      $("distributionOrganizationId").value = id;
+      $("initialAdminOrganizationId").value = id;
+      $("inspectOrganizationId").value = id;
+      persistState();
+      updateSessionUi();
+      toast("Organization selected", shortId(id));
+    }
+
+    function useUser(id) {
+      $("initialAdminUserId").value = id;
+      $("membershipUserId").value = id;
+      toast("User selected", shortId(id));
+    }
+
+    function navigate(viewName) {
+      $$(".view").forEach((view) => view.classList.toggle("active", view.id === "view-" + viewName));
+      $$("[data-view-target]").forEach((button) =>
+        button.classList.toggle("active", button.dataset.viewTarget === viewName)
+      );
+      const view = $("view-" + viewName);
+      $("viewTitle").textContent = view?.dataset.title || "Phase 2 Console";
+      $("viewSubtitle").textContent = view?.dataset.subtitle || "";
+      history.replaceState(null, "", "#/" + viewName);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function updateSessionUi() {
+      const authenticated = Boolean(state.accessToken);
+      const status = $("sessionStatus");
+      status.classList.toggle("authenticated", authenticated);
+      status.classList.toggle("online", authenticated);
+      status.querySelector("span:last-child").textContent =
+        authenticated ? (state.loginIdentifier || "Authenticated") : "Signed out";
+
+      $("sessionCardState").textContent = authenticated ? "Active JWT session" : "No active session";
+      $("sessionEmail").textContent = authenticated ? (state.loginIdentifier || "Authenticated user") : "Not signed in";
+      $("accessExpiry").textContent = formatDate(state.accessTokenExpiresAtUtc);
+      $("refreshExpiry").textContent = formatDate(state.refreshTokenExpiresAtUtc);
+      $("sessionOrganization").textContent = state.activeOrganizationId || "Platform scope / none";
+      $("activeOrganizationId").value = state.activeOrganizationId;
+      $("rolesOrganizationId").value = state.activeOrganizationId;
+      $("moneyOrganizationId").value = state.activeOrganizationId;
+      $("giftCardOrganizationId").value = state.activeOrganizationId;
+      $("giftCardLifecycleOrganizationId").value = state.activeOrganizationId;
+      $("distributionOrganizationId").value = state.activeOrganizationId;
+      $("refreshSession").disabled = !authenticated || !state.refreshToken;
+      $("revokeSession").disabled = !authenticated || !state.refreshToken;
+      updateCountdown();
+    }
+
+    function updateCountdown() {
+      if (!state.accessTokenExpiresAtUtc || !state.accessToken) {
+        $("sessionCountdown").textContent = "Sign in to begin a JWT session.";
+        return;
+      }
+      const remaining = new Date(state.accessTokenExpiresAtUtc).getTime() - Date.now();
+      if (remaining <= 0) {
+        $("sessionCountdown").textContent = "Access token expired. Rotate the refresh token to continue.";
+        return;
+      }
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      $("sessionCountdown").textContent =
+        "Access token valid for " + minutes + "m " + String(seconds).padStart(2, "0") + "s";
+    }
+
+    function renderSubsidiaries(items) {
+      $("subsidiaryList").innerHTML = items.length
+        ? items.map((item) => recordHtml("organization", item.id, item.name, item.code + " · depth " + item.depth)).join("")
+        : '<div class="empty">No direct subsidiaries found.</div>';
+    }
+
+    function renderMemberships(items) {
+      $("membershipList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>User ' + safeText(shortId(item.userId)) +
+            '</strong><code>' + safeText(item.id) + ' · ' + safeText(item.status) + '</code></div>' +
+            '<div class="record-actions"><button class="button ghost small" type="button" data-copy="' +
+            safeText(item.id) + '">Copy ID</button>' +
+            (item.status === "Active" ? '<button class="button danger small" type="button" data-disable-membership="' +
+            safeText(item.id) + '">Disable</button>' : '') +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No memberships found.</div>';
+    }
+
+    function renderRoles(items) {
+      $("roleList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' + safeText(item.name) +
+            '</strong><code>' + safeText(item.id) + ' · ' + item.permissions.length +
+            ' permission(s)</code></div><div class="record-actions">' +
+            '<button class="button ghost small" type="button" data-copy="' + safeText(item.id) + '">Copy ID</button>' +
+            '<button class="button soft small" type="button" data-use-role="' + safeText(item.id) + '">Use</button>' +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No roles found.</div>';
+    }
+
+    function renderCreditBalances(items) {
+      $("creditBalanceList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(Number(item.amount).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
+            })) + ' ' + safeText(item.currency) +
+            '</strong><code>Ledger-derived available value</code></div></div>'
+          ).join("")
+        : '<div class="empty">No corporate-credit account has been funded yet.</div>';
+    }
+
+    function renderCreditHistory(items) {
+      $("creditHistoryList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(Number(item.amount).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
+            })) + ' ' + safeText(item.currency) +
+            (item.reversal ? ' · Reversed' : ' · Allocated') +
+            '</strong><code>' + safeText(item.businessReference) + ' · ' +
+            safeText(formatDate(item.allocatedAtUtc)) +
+            (item.reversal
+              ? ' · ' + safeText(item.reversal.reason) + ' at ' +
+                safeText(formatDate(item.reversal.reversedAtUtc))
+              : '') +
+            '</code></div><div class="record-actions">' +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.ledgerTransactionId) + '">Copy ledger ID</button>' +
+            (item.reversal
+              ? ''
+              : '<button class="button danger small" type="button" data-reverse-allocation="' +
+                safeText(item.id) + '">Reverse</button>') +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No corporate-credit allocations found.</div>';
+    }
+
+    function renderGiftCardInventory(items) {
+      $("giftCardInventoryList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(Number(item.fundedAmount).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
+            })) + ' ' + safeText(item.currency) + ' · ' +
+            safeText(item.publicReference) +
+            '</strong><code>' + safeText(item.ownershipState) + ' · ' +
+            safeText(item.lifecycleState) + ' · expires ' +
+            safeText(formatDate(item.expiresAtUtc)) +
+            '</code></div><div class="record-actions">' +
+            (item.lifecycleState === "Active"
+              ? '<button class="button soft small" type="button" data-distribute-card="' +
+                safeText(item.id) + '">Distribute</button>'
+              : '') +
+            '<button class="button ghost small" type="button" data-manage-card="' +
+            safeText(item.id) + '">Manage lifecycle</button>' +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.id) + '">Copy card ID</button>' +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.issuanceLedgerTransactionId) + '">Copy ledger ID</button>' +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No organization-owned inventory cards found.</div>';
+    }
+
+    function formatAmount(value) {
+      return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      });
+    }
+
+    function renderFinancialSummary(summary) {
+      const currencies = summary?.currencies || [];
+      $("financialSummaryList").innerHTML = currencies.length
+        ? currencies.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(formatAmount(item.remainingCorporateCredit)) + ' ' +
+            safeText(item.currency) + ' corporate · ' +
+            safeText(formatAmount(item.remainingGiftCardValue)) + ' ' +
+            safeText(item.currency) + ' on cards</strong><code>Granted ' +
+            safeText(formatAmount(item.granted)) + ' · reversed ' +
+            safeText(formatAmount(item.reversed)) + ' · issued ' +
+            safeText(formatAmount(item.issued)) + ' · distributed ' +
+            safeText(formatAmount(item.distributed)) + ' · cancelled return ' +
+            safeText(formatAmount(item.cancelledReturned)) + ' · expired return ' +
+            safeText(formatAmount(item.expiredReturned)) +
+            '</code></div></div>'
+          ).join("")
+        : '<div class="empty">No financial activity exists for this organization.</div>';
+    }
+
+    function renderFinancialHistory(listId, items) {
+      $(listId).innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(item.operation) +
+            (item.amount === null || item.amount === undefined
+              ? ''
+              : ' · ' + safeText(formatAmount(item.amount)) + ' ' +
+                safeText(item.currency)) +
+            '</strong><code>' + safeText(item.category) + ' · ' +
+            safeText(item.financialDirection || "No balance movement") +
+            (item.giftCardPublicReference
+              ? ' · ' + safeText(item.giftCardPublicReference)
+              : '') +
+            (item.state ? ' · ' + safeText(item.state) : '') +
+            ' · ' + safeText(formatDate(item.occurredAtUtc)) +
+            '</code></div><div class="record-actions">' +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.entityId) + '">Copy entity ID</button>' +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No financial history found.</div>';
+    }
+
+    function renderFinancialReconciliation(result) {
+      const findings = result?.findings || [];
+      const summary =
+        '<div class="record"><div class="record-main"><strong>' +
+        (result?.isConsistent ? 'Consistent' : 'Attention required') +
+        '</strong><code>' + safeText(result?.transactionsChecked || 0) +
+        ' transaction(s) · ' + safeText(result?.giftCardsChecked || 0) +
+        ' card(s) · ' + safeText(result?.sharesChecked || 0) +
+        ' share(s) · ' + safeText(result?.activeReservationsChecked || 0) +
+        ' active reservation(s) · checked ' + safeText(formatDate(result?.checkedAtUtc)) +
+        '</code></div></div>';
+      const rows = findings.map((item) =>
+        '<div class="record"><div class="record-main"><strong>' +
+        safeText(item.severity) + ' · ' + safeText(item.code) +
+        '</strong><code>' + safeText(item.entityType) + ' ' +
+        safeText(shortId(item.entityId)) + ' · ' + safeText(item.message) +
+        '</code></div><div class="record-actions"><button class="button ghost small" ' +
+        'type="button" data-copy="' + safeText(item.entityId) +
+        '">Copy entity ID</button></div></div>'
+      ).join("");
+      $("financialReconciliationList").innerHTML =
+        summary + (rows || '<div class="empty">No reconciliation findings.</div>');
+    }
+
+    function renderMyGiftCards(items) {
+      $("myGiftCardList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(formatAmount(item.availableBalance)) + ' ' + safeText(item.currency) +
+            ' · ' + safeText(item.publicReference) +
+            '</strong><code>' + safeText(item.lifecycleState) +
+            ' / posted ' + safeText(formatAmount(item.balance)) +
+            ' / reserved ' + safeText(formatAmount(item.reservedBalance)) +
+            ' · expires ' + safeText(formatDate(item.expiresAtUtc)) +
+            '</code></div><div class="record-actions">' +
+            '<button class="button soft small" type="button" data-use-owned-card="' +
+            safeText(item.id) + '">View</button>' +
+            '<button class="button soft small" type="button" data-share-card="' +
+            safeText(item.id) + '">Share</button>' +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.id) + '">Copy card ID</button>' +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">This identity does not currently own a gift card.</div>';
+    }
+
+    function renderMyGiftCardDetail(card) {
+      $("myGiftCardDetailList").innerHTML =
+        '<div class="record"><div class="record-main"><strong>' +
+        safeText(formatAmount(card.availableBalance)) + ' ' + safeText(card.currency) +
+        ' available · ' + safeText(card.publicReference) +
+        '</strong><code>' + safeText(card.ownershipState) + ' · ' +
+        safeText(card.lifecycleState) + ' · funded ' +
+        safeText(formatAmount(card.fundedAmount)) + ' ' + safeText(card.currency) +
+        ' / posted ' + safeText(formatAmount(card.balance)) +
+        ' / reserved ' + safeText(formatAmount(card.reservedBalance)) +
+        ' · issued ' + safeText(formatDate(card.issuedAtUtc)) +
+        ' · claimed ' + safeText(formatDate(card.claimedAtUtc)) +
+        ' · expires ' + safeText(formatDate(card.expiresAtUtc)) +
+        '</code></div><div class="record-actions">' +
+        '<button class="button ghost small" type="button" data-copy="' +
+        safeText(card.id) + '">Copy card ID</button></div></div>';
+    }
+
+    function renderMyShares(items) {
+      $("myShareList").innerHTML = items.length
+        ? items.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(formatAmount(item.amount)) + ' ' + safeText(item.currency) +
+            ' / ' + safeText(item.state) + ' / ' + safeText(item.kind) +
+            '</strong><code>source ' + safeText(
+              item.sourceGiftCardPublicReference || shortId(item.sourceGiftCardId)) +
+            (item.childGiftCardPublicReference
+              ? ' / child ' + safeText(item.childGiftCardPublicReference)
+              : '') +
+            (item.maskedRecipientContact
+              ? ' / recipient ' + safeText(item.maskedRecipientContact)
+              : '') +
+            ' / expires ' + safeText(formatDate(item.expiresAtUtc)) +
+            '</code></div><div class="record-actions">' +
+            (item.state === "Pending"
+              ? '<button class="button danger small" type="button" data-cancel-share="' +
+                safeText(item.id) + '">Cancel</button>'
+              : '') +
+            '<button class="button ghost small" type="button" data-copy="' +
+            safeText(item.id) + '">Copy share ID</button>' +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No shares found for this identity.</div>';
+    }
+
+    function renderBulkGiftCardBatch(batch) {
+      const totals = (batch.currencyTotals || [])
+        .map((total) => Number(total.amount).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 4,
+        }) + " " + total.currency)
+        .join(" · ");
+      const summary =
+        '<div class="record"><div class="record-main"><strong>' +
+        safeText(batch.status) + ' · ' + safeText(batch.totalItems) +
+        ' recipient(s)</strong><code>' + safeText(batch.batchReference) +
+        (totals ? ' · ' + safeText(totals) : '') +
+        '</code></div><div class="record-actions"><button class="button ghost small" ' +
+        'type="button" data-copy="' + safeText(batch.id) +
+        '">Copy batch ID</button></div></div>';
+      const items = (batch.items || []).map((item) =>
+        '<div class="record"><div class="record-main"><strong>#' +
+        safeText(item.position) + ' · ' + safeText(item.itemReference) +
+        ' · ' + safeText(item.amount) + ' ' + safeText(item.currency) +
+        '</strong><code>' + safeText(item.giftCardPublicReference) + ' · ' +
+        safeText(item.maskedRecipientContact) + ' · ' +
+        safeText(item.giftCardState) + '</code></div><div class="record-actions">' +
+        '<button class="button soft small" type="button" data-bulk-invitation="' +
+        safeText(item.invitationId) + '">Open delivery</button>' +
+        '<button class="button ghost small" type="button" data-copy="' +
+        safeText(item.giftCardId) + '">Copy card ID</button></div></div>'
+      ).join("");
+      $("bulkGiftCardBatchList").innerHTML = summary + items;
+    }
+
+    function renderLifecycleHistory(listId, history) {
+      const events = history?.events || [];
+      $(listId).innerHTML = events.length
+        ? events.map((item) =>
+            '<div class="record"><div class="record-main"><strong>' +
+            safeText(item.action) + ' · ' + safeText(item.newState) +
+            '</strong><code>' + safeText(item.actorType) + ' · ' +
+            safeText(formatDate(item.occurredAtUtc)) + ' · ' +
+            safeText(item.reason) +
+            (item.returnedAmount === null || item.returnedAmount === undefined
+              ? ''
+              : ' · returned ' + safeText(item.returnedAmount) + ' ' +
+                safeText(item.currency)) +
+            '</code></div><div class="record-actions">' +
+            (item.ledgerTransactionId
+              ? '<button class="button ghost small" type="button" data-copy="' +
+                safeText(item.ledgerTransactionId) + '">Copy ledger ID</button>'
+              : '') +
+            '</div></div>'
+          ).join("")
+        : '<div class="empty">No lifecycle actions have been recorded for this card.</div>';
+    }
+
+    function extractClaimToken(claimUrl) {
+      try {
+        const url = new URL(claimUrl, location.origin);
+        const direct = url.searchParams.get("token");
+        if (direct) return direct;
+        const queryIndex = url.hash.indexOf("?");
+        if (queryIndex < 0) return "";
+        return new URLSearchParams(url.hash.slice(queryIndex + 1)).get("token") || "";
+      } catch {
+        return "";
+      }
+    }
+
+    function renderClaimDelivery(delivery) {
+      $("claimDeliveryList").innerHTML =
+        '<div class="record"><div class="record-main"><strong>' +
+        safeText(delivery.contactType) + ' to ' + safeText(delivery.maskedRecipientContact) +
+        '</strong><code>Expires ' + safeText(formatDate(delivery.expiresAtUtc)) +
+        '</code></div><div class="record-actions">' +
+        '<a class="button soft small" href="' + safeText(delivery.claimUrl) +
+        '">Open activation link</a></div></div>';
+    }
+
+    function bindForms() {
+      $("bootstrapForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const button = event.submitter;
+        withBusy(button, async () => {
+          const secret = $("bootstrapSecret").value;
+          const email = $("bootstrapEmail").value.trim();
+          const password = $("bootstrapPassword").value;
+          try {
+            const { response, body } = await api("/api/v1/bootstrap/platform-administrator", {
+              method: "POST",
+              auth: false,
+              bootstrapSecret: secret,
+              body: { email, password },
+            });
+            showResult("bootstrapResult", true, response.status + " · Platform Administrator created", body);
+            $("bootstrapSecret").value = "";
+            $("bootstrapPassword").value = "";
+            $("loginIdentifier").value = email;
+            addRecentUser({ id: body.userId, email: body.email });
+            addActivity("Platform bootstrap completed", body.email);
+            toast("Bootstrap complete", "Sign in with the new administrator account.");
+          } catch (error) {
+            $("bootstrapSecret").value = "";
+            $("bootstrapPassword").value = "";
+            showError("bootstrapResult", error);
+          }
+        });
+      });
+
+      $("loginForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const button = event.submitter;
+        withBusy(button, async () => {
+          const identifier = $("loginIdentifier").value.trim();
+          const password = $("loginPassword").value;
+          try {
+            const { response, body } = await api("/api/v1/auth/login", {
+              method: "POST",
+              auth: false,
+              body: {
+                email: identifier.includes("@") ? identifier : null,
+                phoneNumber: identifier.includes("@") ? null : identifier,
+                password,
+              },
+            });
+            state.accessToken = body.accessToken;
+            state.refreshToken = body.refreshToken;
+            state.accessTokenExpiresAtUtc = body.accessTokenExpiresAtUtc;
+            state.refreshTokenExpiresAtUtc = body.refreshTokenExpiresAtUtc;
+            state.loginIdentifier = identifier;
+            persistState();
+            updateSessionUi();
+            showResult("loginResult", true, response.status + " · Signed in", {
+              identifier,
+              accessTokenExpiresAtUtc: body.accessTokenExpiresAtUtc,
+              refreshTokenExpiresAtUtc: body.refreshTokenExpiresAtUtc,
+            });
+            $("loginPassword").value = "";
+            addActivity("Signed in", identifier);
+            toast("Signed in", "JWT session is ready.");
+          } catch (error) {
+            $("loginPassword").value = "";
+            showError("loginResult", error);
+          }
+        });
+      });
+
+      $("createOrganizationForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api("/api/v1/organizations", {
+              method: "POST",
+              body: {
+                name: $("organizationName").value,
+                code: $("organizationCode").value,
+              },
+            });
+            showResult("createOrganizationResult", true, response.status + " · Customer created", body);
+            addRecentOrganization(body);
+            useOrganization(body.id);
+            addActivity("Customer organization created", body.name + " · " + body.code);
+            toast("Customer created", body.name);
+            $("organizationCode").value = uniqueCode("ORG");
+          } catch (error) { showError("createOrganizationResult", error); }
+        });
+      });
+
+      $("allocateCorporateCreditForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const organizationId = $("moneyOrganizationId").value.trim();
+          try {
+            const { response, body } = await api("/api/v1/corporate-credits/allocations", {
+              method: "POST",
+              body: {
+                organizationId,
+                amount: Number($("creditAmount").value),
+                currency: $("creditCurrency").value.trim(),
+                businessReference: $("creditBusinessReference").value.trim(),
+                idempotencyKey: $("creditIdempotencyKey").value.trim(),
+              },
+            });
+            showResult(
+              "allocateCorporateCreditResult",
+              true,
+              response.status + " · Corporate credit posted",
+              body
+            );
+            addActivity(
+              "Corporate credit allocated",
+              body.amount + " " + body.currency + " → " + shortId(body.organizationId)
+            );
+            toast("Allocation posted", body.amount + " " + body.currency);
+            $("creditBusinessReference").value = "CONTRACT-" + uniqueCode("REF");
+            $("creditIdempotencyKey").value = "allocation-" + crypto.randomUUID();
+            await loadCorporateCredit(true);
+          } catch (error) { showError("allocateCorporateCreditResult", error); }
+        });
+      });
+
+      $("reverseCorporateCreditForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const allocationId = $("reversalAllocationId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/corporate-credits/allocations/" +
+              encodeURIComponent(allocationId) + "/reversal",
+              {
+                method: "POST",
+                body: {
+                  reason: $("reversalReason").value.trim(),
+                  idempotencyKey: $("reversalIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            showResult(
+              "reverseCorporateCreditResult",
+              true,
+              response.status + " · Allocation reversed",
+              body
+            );
+            addActivity(
+              "Corporate credit reversed",
+              body.amount + " " + body.currency + " · " + shortId(body.allocationId)
+            );
+            toast("Reversal posted", body.amount + " " + body.currency);
+            $("reversalIdempotencyKey").value = "reversal-" + crypto.randomUUID();
+            await loadCorporateCredit(true);
+          } catch (error) { showError("reverseCorporateCreditResult", error); }
+        });
+      });
+
+      $("issueGiftCardForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const organizationId = $("giftCardOrganizationId").value.trim();
+          try {
+            const expiresAt = new Date($("giftCardExpiresAt").value);
+            if (Number.isNaN(expiresAt.getTime())) throw new Error("Choose a valid expiration time.");
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(organizationId) + "/gift-cards/",
+              {
+                method: "POST",
+                scope: "organization",
+                body: {
+                  amount: Number($("giftCardAmount").value),
+                  currency: $("giftCardCurrency").value.trim(),
+                  validFromUtc: null,
+                  expiresAtUtc: expiresAt.toISOString(),
+                  isTransferable: $("giftCardTransferable").value === "true",
+                  isDivisible: $("giftCardDivisible").value === "true",
+                  businessReference: $("giftCardBusinessReference").value.trim(),
+                  idempotencyKey: $("giftCardIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            showResult(
+              "issueGiftCardResult",
+              true,
+              response.status + " · Inventory card issued",
+              body
+            );
+            addActivity(
+              "Gift card issued",
+              body.fundedAmount + " " + body.currency + " · " + body.publicReference
+            );
+            toast("Inventory card issued", body.publicReference);
+            $("giftCardBusinessReference").value = "AWARD-" + uniqueCode("REF");
+            $("giftCardIdempotencyKey").value = "gift-card-" + crypto.randomUUID();
+            await loadGiftCardInventory(true);
+            await loadCorporateCredit(true);
+          } catch (error) { showError("issueGiftCardResult", error); }
+        });
+      });
+
+      $("giftCardLifecycleForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const scope = $("giftCardLifecycleScope").value;
+          const organizationId =
+            $("giftCardLifecycleOrganizationId").value.trim();
+          const giftCardId = $("giftCardLifecycleId").value.trim();
+          const action = $("giftCardLifecycleAction").value;
+          try {
+            if (scope === "organization") {
+              if (!organizationId) {
+                throw new Error("Choose an issuing organization first.");
+              }
+              useOrganization(organizationId);
+            }
+            const { response, body } = await api(
+              lifecycleRoute(scope, organizationId, giftCardId, action),
+              {
+                method: "POST",
+                scope,
+                body: {
+                  reason: $("giftCardLifecycleReason").value.trim(),
+                  idempotencyKey:
+                    $("giftCardLifecycleIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            showResult(
+              "giftCardLifecycleResult",
+              true,
+              response.status + " · Lifecycle action recorded",
+              body
+            );
+            addActivity(
+              "Gift-card lifecycle updated",
+              action + " · " + shortId(giftCardId)
+            );
+            toast("Lifecycle action recorded", action + " · " + shortId(giftCardId));
+            $("giftCardLifecycleIdempotencyKey").value =
+              "lifecycle-" + crypto.randomUUID();
+            await loadGiftCardLifecycleHistory();
+            if (scope === "organization") {
+              await loadGiftCardInventory(true);
+            }
+          } catch (error) {
+            showError("giftCardLifecycleResult", error);
+          }
+        });
+      });
+
+      $("bulkGiftCardBatchForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const organizationId = $("distributionOrganizationId").value.trim();
+          try {
+            if (!organizationId) {
+              throw new Error("Choose an active organization first.");
+            }
+            const expiresAt = new Date($("bulkBatchExpiresAt").value);
+            if (Number.isNaN(expiresAt.getTime())) {
+              throw new Error("Choose a valid batch expiration time.");
+            }
+            const recipients = $("bulkBatchRecipients").value
+              .split(/\r?\n/)
+              .map((recipient) => recipient.trim())
+              .filter(Boolean);
+            if (recipients.length < 1 || recipients.length > 100) {
+              throw new Error("Enter between 1 and 100 recipients, one per line.");
+            }
+            useOrganization(organizationId);
+            const items = recipients.map((recipient, index) => ({
+              itemReference: "ROW-" + String(index + 1).padStart(3, "0"),
+              amount: Number($("bulkBatchAmount").value),
+              currency: $("bulkBatchCurrency").value.trim(),
+              validFromUtc: null,
+              expiresAtUtc: expiresAt.toISOString(),
+              isTransferable: false,
+              isDivisible: false,
+              contactType: recipient.startsWith("+") ? "Phone" : "Email",
+              recipientContact: recipient,
+            }));
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+              "/gift-card-batches/",
+              {
+                method: "POST",
+                scope: "organization",
+                body: {
+                  batchReference: $("bulkBatchReference").value.trim(),
+                  idempotencyKey:
+                    $("bulkBatchIdempotencyKey").value.trim(),
+                  items,
+                },
+              }
+            );
+            $("bulkBatchId").value = body.id;
+            renderBulkGiftCardBatch(body);
+            showResult(
+              "bulkGiftCardBatchResult",
+              true,
+              response.status + " · Atomic batch completed",
+              body
+            );
+            addActivity(
+              "Bulk gift-card batch completed",
+              body.totalItems + " recipient(s) · " + shortId(body.id)
+            );
+            toast(
+              "Batch completed",
+              body.totalItems + " activation(s) prepared"
+            );
+            $("bulkBatchReference").value = "BATCH-" + uniqueCode("REF");
+            $("bulkBatchIdempotencyKey").value =
+              "bulk-" + crypto.randomUUID();
+            await loadCorporateCredit(true);
+          } catch (error) {
+            showError("bulkGiftCardBatchResult", error);
+          }
+        });
+      });
+
+      $("distributeGiftCardForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const organizationId = $("distributionOrganizationId").value.trim();
+          const giftCardId = $("distributionGiftCardId").value.trim();
+          try {
+            if (!organizationId) throw new Error("Choose an active organization first.");
+            useOrganization(organizationId);
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+              "/gift-cards/" + encodeURIComponent(giftCardId) + "/distributions/",
+              {
+                method: "POST",
+                scope: "organization",
+                body: {
+                  contactType: $("recipientContactType").value,
+                  recipientContact: $("recipientContact").value.trim(),
+                  businessReference: $("distributionBusinessReference").value.trim(),
+                  idempotencyKey: $("distributionIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            showResult(
+              "distributeGiftCardResult",
+              true,
+              response.status + " · Activation sent",
+              body
+            );
+            $("distributionInvitationId").value = body.id;
+            addActivity(
+              "Gift card distributed",
+              body.maskedRecipientContact + " · " + shortId(body.giftCardId)
+            );
+            toast("Activation sent", body.maskedRecipientContact);
+            $("distributionBusinessReference").value = "DELIVERY-" + uniqueCode("REF");
+            $("distributionIdempotencyKey").value = "distribution-" + crypto.randomUUID();
+            await loadClaimDelivery();
+            await loadGiftCardInventory(true);
+          } catch (error) { showError("distributeGiftCardResult", error); }
+        });
+      });
+
+      $("claimGiftCardForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api("/api/v1/gift-card-claims", {
+              method: "POST",
+              auth: false,
+              body: {
+                claimToken: $("claimToken").value.trim(),
+                password: $("claimPassword").value || null,
+                idempotencyKey: $("claimIdempotencyKey").value.trim(),
+              },
+            });
+            showResult(
+              "claimGiftCardResult",
+              true,
+              response.status + " · Gift card activated",
+              body
+            );
+            $("claimToken").value = "";
+            $("claimPassword").value = "";
+            $("claimIdempotencyKey").value = "claim-" + crypto.randomUUID();
+            $("ownedGiftCardId").value = body.giftCard.id;
+            addActivity(
+              "Gift card activated",
+              body.maskedLoginIdentifier + " · " + body.giftCard.publicReference
+            );
+            toast("Gift card activated", body.giftCard.publicReference);
+          } catch (error) {
+            $("claimPassword").value = "";
+            showError("claimGiftCardResult", error);
+          }
+        });
+      });
+
+      $("createProtectedShareForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const sourceGiftCardId = $("shareSourceGiftCardId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/me/gift-cards/" + encodeURIComponent(sourceGiftCardId) +
+              "/shares",
+              {
+                method: "POST",
+                body: {
+                  amount: Number($("shareAmount").value),
+                  idempotencyKey: $("shareCreateIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            const token = extractClaimToken(body.claimUrl);
+            $("shareClaimToken").value = token;
+            $("sharePin").value = body.pin;
+            $("cancelShareId").value = body.share.id;
+            showResult(
+              "createProtectedShareResult",
+              true,
+              response.status + " / Protected link and PIN created once",
+              body
+            );
+            addActivity(
+              "Protected share created",
+              body.share.amount + " " + body.share.currency + " / " +
+              shortId(body.share.id)
+            );
+            toast("Protected share created", "Send the link and PIN separately.");
+            $("shareCreateIdempotencyKey").value =
+              "share-create-" + crypto.randomUUID();
+            await Promise.all([loadMyShares(), loadMyGiftCards(true)]);
+          } catch (error) {
+            showError("createProtectedShareResult", error);
+          }
+        });
+      });
+
+      $("claimProtectedShareForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api("/api/v1/share-claims", {
+              method: "POST",
+              body: {
+                claimToken: $("shareClaimToken").value.trim(),
+                pin: $("sharePin").value,
+                idempotencyKey: $("shareClaimIdempotencyKey").value.trim(),
+              },
+            });
+            showResult(
+              "claimProtectedShareResult",
+              true,
+              response.status + " / Shared value claimed",
+              body
+            );
+            $("shareClaimToken").value = "";
+            $("sharePin").value = "";
+            $("shareClaimIdempotencyKey").value =
+              "share-claim-" + crypto.randomUUID();
+            $("ownedGiftCardId").value = body.childGiftCard.id;
+            addActivity(
+              "Protected share claimed",
+              body.share.amount + " " + body.share.currency + " / " +
+              body.childGiftCard.publicReference
+            );
+            toast("Shared value claimed", body.childGiftCard.publicReference);
+            await Promise.all([loadMyShares(), loadMyGiftCards(true)]);
+          } catch (error) {
+            $("sharePin").value = "";
+            showError("claimProtectedShareResult", error);
+          }
+        });
+      });
+
+      $("createDirectShareForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const sourceGiftCardId = $("directShareSourceGiftCardId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/me/gift-cards/" + encodeURIComponent(sourceGiftCardId) +
+              "/share-invitations",
+              {
+                method: "POST",
+                body: {
+                  amount: Number($("directShareAmount").value),
+                  contactType: $("directShareContactType").value,
+                  recipientContact: $("directShareRecipientContact").value.trim(),
+                  idempotencyKey: $("directShareCreateIdempotencyKey").value.trim(),
+                },
+              }
+            );
+            const delivery = await api(
+              "/api/v1/me/shares/" + encodeURIComponent(body.share.id) +
+              "/development-delivery"
+            );
+            $("directShareClaimToken").value = extractClaimToken(delivery.body.claimUrl);
+            $("cancelShareId").value = body.share.id;
+            showResult(
+              "createDirectShareResult",
+              true,
+              response.status + " / Direct invitation committed and captured",
+              body
+            );
+            addActivity(
+              "Direct share invitation sent",
+              body.maskedRecipientContact + " / " + shortId(body.share.id)
+            );
+            toast("Direct invitation sent", body.maskedRecipientContact);
+            $("directShareCreateIdempotencyKey").value =
+              "share-direct-create-" + crypto.randomUUID();
+            await Promise.all([loadMyShares(), loadMyGiftCards(true)]);
+          } catch (error) {
+            showError("createDirectShareResult", error);
+          }
+        });
+      });
+
+      $("claimDirectShareForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api("/api/v1/share-invitation-claims", {
+              method: "POST",
+              auth: false,
+              body: {
+                claimToken: $("directShareClaimToken").value.trim(),
+                password: $("directSharePassword").value || null,
+                idempotencyKey: $("directShareClaimIdempotencyKey").value.trim(),
+              },
+            });
+            if (body.session) {
+              state.accessToken = body.session.accessToken;
+              state.refreshToken = body.session.refreshToken;
+              state.accessTokenExpiresAtUtc = body.session.accessTokenExpiresAtUtc;
+              state.refreshTokenExpiresAtUtc = body.session.refreshTokenExpiresAtUtc;
+              state.loginIdentifier = body.maskedLoginIdentifier;
+              persistState();
+              updateSessionUi();
+            } else {
+              clearSession();
+            }
+            showResult(
+              "claimDirectShareResult",
+              true,
+              response.status + (body.session
+                ? " / New recipient activated and signed in"
+                : " / Existing recipient activated; sign in normally"),
+              {
+                share: body.share,
+                identityWasCreated: body.identityWasCreated,
+                maskedLoginIdentifier: body.maskedLoginIdentifier,
+                childGiftCard: body.childGiftCard,
+              }
+            );
+            $("directShareClaimToken").value = "";
+            $("directSharePassword").value = "";
+            $("directShareClaimIdempotencyKey").value =
+              "share-direct-claim-" + crypto.randomUUID();
+            $("ownedGiftCardId").value = body.childGiftCard.id;
+            addActivity(
+              "Direct share activated",
+              body.maskedLoginIdentifier + " / " + body.childGiftCard.publicReference
+            );
+            toast("Direct share activated", body.childGiftCard.publicReference);
+          } catch (error) {
+            $("directSharePassword").value = "";
+            showError("claimDirectShareResult", error);
+          }
+        });
+      });
+
+      $("createUserForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const email = $("newUserEmail").value.trim();
+          const password = $("newUserPassword").value;
+          try {
+            const { response, body } = await api("/api/v1/users", {
+              method: "POST",
+              body: { email, password },
+            });
+            showResult("createUserResult", true, response.status + " · User created", body);
+            addRecentUser(body);
+            useUser(body.id);
+            addActivity("Customer user created", body.email);
+            toast("User created", body.email);
+            $("newUserPassword").value = "";
+          } catch (error) {
+            $("newUserPassword").value = "";
+            showError("createUserResult", error);
+          }
+        });
+      });
+
+      $("initialAdministratorForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const organizationId = $("initialAdminOrganizationId").value.trim();
+          const userId = $("initialAdminUserId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(organizationId) + "/initial-administrator",
+              { method: "POST", body: { userId } }
+            );
+            showResult("initialAdministratorResult", true, response.status + " · Company Administrator assigned", body);
+            useOrganization(organizationId);
+            $("assignMembershipId").value = body.membershipId;
+            addActivity("Initial Company Administrator assigned", shortId(userId) + " → " + shortId(organizationId));
+            toast("Administrator assigned", "Customer access is ready.");
+          } catch (error) { showError("initialAdministratorResult", error); }
+        });
+      });
+
+      $("inspectOrganizationForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const id = $("inspectOrganizationId").value.trim();
+          try {
+            const { response, body } = await api("/api/v1/organizations/" + encodeURIComponent(id));
+            showResult("inspectOrganizationResult", true, response.status + " · Organization found", body);
+            addRecentOrganization(body);
+          } catch (error) { showError("inspectOrganizationResult", error); }
+        });
+      });
+
+      $("inspectMembershipsButton").addEventListener("click", (event) => {
+        withBusy(event.currentTarget, async () => {
+          const id = $("inspectOrganizationId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(id) + "/memberships?limit=50&offset=0"
+            );
+            showResult("inspectOrganizationResult", true, response.status + " · Memberships", body);
+          } catch (error) { showError("inspectOrganizationResult", error); }
+        });
+      });
+
+      $("createSubsidiaryForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/subsidiaries",
+              {
+                method: "POST",
+                scope: "organization",
+                body: { name: $("subsidiaryName").value, code: $("subsidiaryCode").value },
+              }
+            );
+            showResult("createSubsidiaryResult", true, response.status + " · Subsidiary created", body);
+            addRecentOrganization(body);
+            addActivity("Subsidiary created", body.name + " · " + body.code);
+            toast("Subsidiary created", body.name);
+            $("subsidiaryCode").value = uniqueCode("SUB");
+            await loadSubsidiaries();
+          } catch (error) { showError("createSubsidiaryResult", error); }
+        });
+      });
+
+      $("createMembershipForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/memberships",
+              { method: "POST", scope: "organization", body: { userId: $("membershipUserId").value.trim() } }
+            );
+            showResult("createMembershipResult", true, response.status + " · Membership created", body);
+            $("assignMembershipId").value = body.id;
+            addActivity("Membership created", shortId(body.userId));
+            toast("Membership created", shortId(body.id));
+            await loadMemberships();
+          } catch (error) { showError("createMembershipResult", error); }
+        });
+      });
+
+      $("createRoleForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/roles",
+              { method: "POST", scope: "organization", body: { name: $("roleName").value } }
+            );
+            showResult("createRoleResult", true, response.status + " · Role created", body);
+            $("grantRoleId").value = body.id;
+            $("assignRoleId").value = body.id;
+            addActivity("Organization role created", body.name);
+            toast("Role created", body.name);
+            await loadRoles();
+          } catch (error) { showError("createRoleResult", error); }
+        });
+      });
+
+      $("grantPermissionsForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          const roleId = $("grantRoleId").value.trim();
+          try {
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) +
+              "/roles/" + encodeURIComponent(roleId) + "/permissions",
+              {
+                method: "POST",
+                scope: "organization",
+                body: { permissions: splitValues($("permissionNames").value) },
+              }
+            );
+            showResult("grantPermissionsResult", true, response.status + " · Permissions granted", body);
+            addActivity("Role permissions granted", body.name + " · " + body.permissions.length);
+            toast("Permissions granted", body.name);
+            await loadRoles();
+          } catch (error) { showError("grantPermissionsResult", error); }
+        });
+      });
+
+      $("assignRoleForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        withBusy(event.submitter, async () => {
+          try {
+            const scope = $("assignScope").value;
+            const selected = splitValues($("selectedOrganizationIds").value);
+            const { response, body } = await api(
+              "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/roles/assignments",
+              {
+                method: "POST",
+                scope: "organization",
+                body: {
+                  membershipId: $("assignMembershipId").value.trim(),
+                  roleId: $("assignRoleId").value.trim(),
+                  scope,
+                  anchorOrganizationId: $("anchorOrganizationId").value.trim() || null,
+                  selectedOrganizationIds: scope === "SelectedOrganizations" ? selected : null,
+                },
+              }
+            );
+            showResult("assignRoleResult", true, response.status + " · Role assigned", body);
+            addActivity("Scoped role assigned", body.scope + " · " + shortId(body.membershipId));
+            toast("Role assigned", body.scope + " scope");
+          } catch (error) { showError("assignRoleResult", error); }
+        });
+      });
+    }
+
+    async function loadSubsidiaries() {
+      try {
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/subsidiaries?limit=50&offset=0",
+          { scope: "organization" }
+        );
+        renderSubsidiaries(body.items || []);
+        showResult("listSubsidiariesResult", true, response.status + " · " + (body.items?.length || 0) + " subsidiaries", body);
+      } catch (error) { showError("listSubsidiariesResult", error); }
+    }
+
+    async function loadMemberships() {
+      try {
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/memberships?limit=50&offset=0",
+          { scope: "organization" }
+        );
+        renderMemberships(body.items || []);
+        showResult("listMembershipsResult", true, response.status + " · " + (body.items?.length || 0) + " memberships", body);
+      } catch (error) { showError("listMembershipsResult", error); }
+    }
+
+    async function loadRoles() {
+      try {
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) + "/roles",
+          { scope: "organization" }
+        );
+        const items = Array.isArray(body) ? body : [];
+        renderRoles(items);
+        showResult("listRolesResult", true, response.status + " · " + items.length + " roles", items);
+      } catch (error) { showError("listRolesResult", error); }
+    }
+
+    async function loadCorporateCredit(reset) {
+      try {
+        const organizationId = $("moneyOrganizationId").value.trim();
+        const scope = $("moneyReadScope").value;
+        if (!organizationId) throw new Error("Choose a root organization first.");
+
+        if (reset) {
+          creditHistoryCursor = null;
+          creditHistoryItems = [];
+        }
+
+        const cursorQuery = creditHistoryCursor
+          ? "&cursor=" + encodeURIComponent(creditHistoryCursor)
+          : "";
+        const balancesPath =
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/corporate-credits/balances";
+        const historyPath =
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/corporate-credits/allocations?limit=20" + cursorQuery;
+
+        const [balancesResult, historyResult] = await Promise.all([
+          api(balancesPath, { scope }),
+          api(historyPath, { scope }),
+        ]);
+        const balances = Array.isArray(balancesResult.body) ? balancesResult.body : [];
+        const history = historyResult.body?.items || [];
+        creditHistoryItems = reset ? history : creditHistoryItems.concat(history);
+        creditHistoryCursor = historyResult.body?.nextCursor || null;
+        renderCreditBalances(balances);
+        renderCreditHistory(creditHistoryItems);
+        $("loadMoreCreditHistory").disabled = !creditHistoryCursor;
+        showResult(
+          "creditBalanceResult",
+          true,
+          balancesResult.response.status + " · " + balances.length + " balance(s)",
+          balances
+        );
+        showResult(
+          "creditHistoryResult",
+          true,
+          historyResult.response.status + " · " + creditHistoryItems.length + " allocation(s)",
+          {
+            itemsLoaded: creditHistoryItems.length,
+            hasMore: Boolean(creditHistoryCursor),
+          }
+        );
+      } catch (error) {
+        showError("creditHistoryResult", error);
+      }
+    }
+
+    async function loadGiftCardInventory(reset) {
+      try {
+        const organizationId = $("giftCardOrganizationId").value.trim();
+        if (!organizationId) throw new Error("Choose an issuing organization first.");
+        if (reset) {
+          giftCardInventoryCursor = null;
+          giftCardInventoryItems = [];
+        }
+
+        const cursorQuery = giftCardInventoryCursor
+          ? "&cursor=" + encodeURIComponent(giftCardInventoryCursor)
+          : "";
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/gift-cards/inventory?limit=20" + cursorQuery,
+          { scope: "organization" }
+        );
+        const items = body?.items || [];
+        giftCardInventoryItems = reset
+          ? items
+          : giftCardInventoryItems.concat(items);
+        giftCardInventoryCursor = body?.nextCursor || null;
+        renderGiftCardInventory(giftCardInventoryItems);
+        $("loadMoreGiftCardInventory").disabled = !giftCardInventoryCursor;
+        showResult(
+          "giftCardInventoryResult",
+          true,
+          response.status + " · " + giftCardInventoryItems.length + " card(s)",
+          {
+            itemsLoaded: giftCardInventoryItems.length,
+            hasMore: Boolean(giftCardInventoryCursor),
+          }
+        );
+      } catch (error) {
+        showError("giftCardInventoryResult", error);
+      }
+    }
+
+    function reportingContext() {
+      const organizationId = $("moneyOrganizationId").value.trim();
+      const scope = $("moneyReadScope").value;
+      if (!organizationId) throw new Error("Choose a root organization first.");
+      if (scope === "organization") useOrganization(organizationId);
+      return { organizationId, scope };
+    }
+
+    async function loadFinancialSummary() {
+      try {
+        const { organizationId, scope } = reportingContext();
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/reports/financial-summary",
+          { scope }
+        );
+        renderFinancialSummary(body);
+        showResult(
+          "financialReportingResult",
+          true,
+          response.status + " · Financial summary loaded",
+          {
+            organizationId: body.organizationId,
+            asOfUtc: body.asOfUtc,
+            currencies: body.currencies?.length || 0,
+          }
+        );
+      } catch (error) {
+        showError("financialReportingResult", error);
+      }
+    }
+
+    async function runFinancialReconciliation() {
+      try {
+        const { organizationId, scope } = reportingContext();
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/reports/reconciliation",
+          { scope }
+        );
+        renderFinancialReconciliation(body);
+        showResult(
+          "financialReportingResult",
+          body.isConsistent,
+          response.status + " · Reconciliation " +
+            (body.isConsistent ? "clean" : "findings returned"),
+          {
+            organizationId: body.organizationId,
+            checkedAtUtc: body.checkedAtUtc,
+            isConsistent: body.isConsistent,
+            transactionsChecked: body.transactionsChecked,
+            giftCardsChecked: body.giftCardsChecked,
+            sharesChecked: body.sharesChecked,
+            activeReservationsChecked: body.activeReservationsChecked,
+            findings: body.findings?.length || 0,
+          }
+        );
+      } catch (error) {
+        showError("financialReportingResult", error);
+      }
+    }
+
+    async function loadFinancialHistory(reset) {
+      try {
+        const { organizationId, scope } = reportingContext();
+        if (reset) {
+          financialHistoryCursor = null;
+          financialHistoryItems = [];
+        }
+        const cursorQuery = financialHistoryCursor
+          ? "&cursor=" + encodeURIComponent(financialHistoryCursor)
+          : "";
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/reports/financial-history?limit=20" + cursorQuery,
+          { scope }
+        );
+        const items = body?.items || [];
+        financialHistoryItems = reset
+          ? items
+          : financialHistoryItems.concat(items);
+        financialHistoryCursor = body?.nextCursor || null;
+        renderFinancialHistory("financialHistoryList", financialHistoryItems);
+        $("loadMoreFinancialHistory").disabled = !financialHistoryCursor;
+        showResult(
+          "financialHistoryResult",
+          true,
+          response.status + " · " + financialHistoryItems.length +
+            " financial event(s)",
+          {
+            itemsLoaded: financialHistoryItems.length,
+            hasMore: Boolean(financialHistoryCursor),
+          }
+        );
+      } catch (error) {
+        showError("financialHistoryResult", error);
+      }
+    }
+
+    async function loadMyShares() {
+      try {
+        const query = new URLSearchParams({ limit: "100" });
+        if ($("myShareDirection").value) query.set("direction", $("myShareDirection").value);
+        if ($("myShareKind").value) query.set("kind", $("myShareKind").value);
+        if ($("myShareState").value) query.set("state", $("myShareState").value);
+        const { response, body } = await api("/api/v1/me/shares?" + query.toString());
+        renderMyShares(body?.items || []);
+        showResult(
+          "mySharesResult",
+          true,
+          response.status + " / " + (body?.items?.length || 0) + " share(s)",
+          { itemsLoaded: body?.items?.length || 0 }
+        );
+      } catch (error) {
+        showError("mySharesResult", error);
+      }
+    }
+
+    async function cancelProtectedShare() {
+      const shareId = $("cancelShareId").value.trim();
+      if (!shareId) throw new Error("Choose a pending sent share first.");
+      const { response, body } = await api(
+        "/api/v1/me/shares/" + encodeURIComponent(shareId) + "/cancel",
+        {
+          method: "POST",
+          body: {
+            idempotencyKey: "share-cancel-" + crypto.randomUUID(),
+          },
+        }
+      );
+      showResult(
+        "mySharesResult",
+        true,
+        response.status + " / Reservation released",
+        body
+      );
+      addActivity("Protected share cancelled", shortId(shareId));
+      toast("Share cancelled", "Reserved value is available again.");
+      await Promise.all([loadMyShares(), loadMyGiftCards(true)]);
+    }
+
+    async function loadMyGiftCards(reset) {
+      try {
+        if (reset) {
+          myGiftCardCursor = null;
+          myGiftCardItems = [];
+        }
+        const cursorQuery = myGiftCardCursor
+          ? "&cursor=" + encodeURIComponent(myGiftCardCursor)
+          : "";
+        const { response, body } = await api(
+          "/api/v1/me/gift-cards?limit=20" + cursorQuery
+        );
+        const items = body?.items || [];
+        myGiftCardItems = reset ? items : myGiftCardItems.concat(items);
+        myGiftCardCursor = body?.nextCursor || null;
+        renderMyGiftCards(myGiftCardItems);
+        $("loadMoreMyGiftCards").disabled = !myGiftCardCursor;
+        showResult(
+          "myGiftCardsResult",
+          true,
+          response.status + " · " + myGiftCardItems.length + " owned card(s)",
+          {
+            itemsLoaded: myGiftCardItems.length,
+            hasMore: Boolean(myGiftCardCursor),
+          }
+        );
+      } catch (error) {
+        showError("myGiftCardsResult", error);
+      }
+    }
+
+    async function loadMyGiftCard(cardId, resetHistory) {
+      try {
+        if (!cardId) throw new Error("Choose an owned gift card first.");
+        selectedMyGiftCardId = cardId;
+        $("ownedGiftCardId").value = cardId;
+        if (resetHistory) {
+          myGiftCardHistoryCursor = null;
+          myGiftCardHistoryItems = [];
+        }
+        const cursorQuery = myGiftCardHistoryCursor
+          ? "&cursor=" + encodeURIComponent(myGiftCardHistoryCursor)
+          : "";
+        const detailPromise = resetHistory
+          ? api("/api/v1/me/gift-cards/" + encodeURIComponent(cardId))
+          : Promise.resolve(null);
+        const historyPromise = api(
+          "/api/v1/me/gift-cards/" + encodeURIComponent(cardId) +
+          "/history?limit=20" + cursorQuery
+        );
+        const [detailResult, historyResult] = await Promise.all([
+          detailPromise,
+          historyPromise,
+        ]);
+        if (detailResult) renderMyGiftCardDetail(detailResult.body);
+        const items = historyResult.body?.items || [];
+        myGiftCardHistoryItems = resetHistory
+          ? items
+          : myGiftCardHistoryItems.concat(items);
+        myGiftCardHistoryCursor = historyResult.body?.nextCursor || null;
+        renderFinancialHistory(
+          "myGiftCardFinancialHistoryList",
+          myGiftCardHistoryItems
+        );
+        $("loadMoreMyGiftCardHistory").disabled = !myGiftCardHistoryCursor;
+        showResult(
+          "myGiftCardsResult",
+          true,
+          historyResult.response.status + " · Owned card history loaded",
+          {
+            giftCardId: cardId,
+            balance: detailResult?.body.balance,
+            currency: detailResult?.body.currency,
+            historyItemsLoaded: myGiftCardHistoryItems.length,
+            hasMoreHistory: Boolean(myGiftCardHistoryCursor),
+          }
+        );
+      } catch (error) {
+        showError("myGiftCardsResult", error);
+      }
+    }
+
+    function lifecycleRoute(scope, organizationId, giftCardId, tail) {
+      if (scope === "platform") {
+        return "/api/v1/platform/gift-cards/" +
+          encodeURIComponent(giftCardId) + "/lifecycle/" + tail;
+      }
+
+      return "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+        "/gift-cards/" + encodeURIComponent(giftCardId) +
+        "/lifecycle/" + tail;
+    }
+
+    async function loadGiftCardLifecycleHistory() {
+      const scope = $("giftCardLifecycleScope").value;
+      const organizationId = $("giftCardLifecycleOrganizationId").value.trim();
+      const giftCardId = $("giftCardLifecycleId").value.trim();
+      if (!giftCardId) throw new Error("Choose a gift card first.");
+      if (scope === "organization") {
+        if (!organizationId) throw new Error("Choose an issuing organization first.");
+        useOrganization(organizationId);
+      }
+
+      const { response, body } = await api(
+        lifecycleRoute(scope, organizationId, giftCardId, "history"),
+        { scope }
+      );
+      renderLifecycleHistory("giftCardLifecycleHistoryList", body);
+      showResult(
+        "giftCardLifecycleResult",
+        true,
+        response.status + " · Lifecycle history loaded",
+        {
+          giftCardId: body.giftCard?.id,
+          ownershipState: body.giftCard?.ownershipState,
+          lifecycleState: body.giftCard?.lifecycleState,
+          events: body.events?.length || 0,
+        }
+      );
+    }
+
+    async function loadOwnedGiftCardHistory() {
+      const giftCardId = $("ownedGiftCardId").value.trim();
+      if (!giftCardId) throw new Error("Choose an owned gift card first.");
+      const { response, body } = await api(
+        "/api/v1/me/gift-cards/" + encodeURIComponent(giftCardId) +
+        "/lifecycle/history"
+      );
+      renderLifecycleHistory("ownedGiftCardHistoryList", body);
+      showResult(
+        "ownedGiftCardLifecycleResult",
+        true,
+        response.status + " · Cardholder history loaded",
+        {
+          giftCardId: body.giftCard?.id,
+          lifecycleState: body.giftCard?.lifecycleState,
+          events: body.events?.length || 0,
+        }
+      );
+    }
+
+    async function runOwnedGiftCardLifecycle(action) {
+      const giftCardId = $("ownedGiftCardId").value.trim();
+      if (!giftCardId) throw new Error("Choose an owned gift card first.");
+      const { response, body } = await api(
+        "/api/v1/me/gift-cards/" + encodeURIComponent(giftCardId) +
+        "/lifecycle/" + action,
+        {
+          method: "POST",
+          body: {
+            idempotencyKey:
+              "owner-lifecycle-" + crypto.randomUUID(),
+          },
+        }
+      );
+      showResult(
+        "ownedGiftCardLifecycleResult",
+        true,
+        response.status + " · Card " + action + " complete",
+        body
+      );
+      addActivity(
+        "Cardholder lifecycle action",
+        action + " · " + shortId(giftCardId)
+      );
+      toast("Card " + action + " complete", shortId(giftCardId));
+      await loadOwnedGiftCardHistory();
+    }
+
+    async function loadBulkGiftCardBatch() {
+      try {
+        const organizationId = $("distributionOrganizationId").value.trim();
+        const batchId = $("bulkBatchId").value.trim();
+        if (!organizationId) {
+          throw new Error("Choose an active organization first.");
+        }
+        if (!batchId) {
+          throw new Error("Enter a completed batch ID first.");
+        }
+        useOrganization(organizationId);
+        const { response, body } = await api(
+          "/api/v1/organizations/" + encodeURIComponent(organizationId) +
+          "/gift-card-batches/" + encodeURIComponent(batchId),
+          { scope: "organization" }
+        );
+        renderBulkGiftCardBatch(body);
+        showResult(
+          "bulkGiftCardBatchResult",
+          true,
+          response.status + " · Batch result loaded",
+          body
+        );
+      } catch (error) {
+        showError("bulkGiftCardBatchResult", error);
+      }
+    }
+
+    async function loadClaimDelivery() {
+      try {
+        const organizationId = $("distributionOrganizationId").value.trim();
+        const invitationId = $("distributionInvitationId").value.trim();
+        if (!organizationId) throw new Error("Choose an active organization first.");
+        if (!invitationId) throw new Error("Enter an invitation ID first.");
+        useOrganization(organizationId);
+
+        const { response, body } = await api(
+          "/api/v1/development/organizations/" + encodeURIComponent(organizationId) +
+          "/claim-deliveries/" + encodeURIComponent(invitationId),
+          { scope: "organization" }
+        );
+        const token = extractClaimToken(body.claimUrl);
+        if (!token) throw new Error("The captured delivery did not contain a valid activation token.");
+        $("claimToken").value = token;
+        renderClaimDelivery(body);
+        showResult(
+          "claimDeliveryResult",
+          true,
+          response.status + " · Development delivery loaded",
+          {
+            invitationId: body.invitationId,
+            contactType: body.contactType,
+            maskedRecipientContact: body.maskedRecipientContact,
+            expiresAtUtc: body.expiresAtUtc,
+            capturedAtUtc: body.capturedAtUtc,
+          }
+        );
+      } catch (error) {
+        showError("claimDeliveryResult", error);
+      }
+    }
+
+    async function disableMembership(id, button) {
+      await withBusy(button, async () => {
+        try {
+          await api(
+            "/api/v1/organizations/" + encodeURIComponent(state.activeOrganizationId) +
+            "/memberships/" + encodeURIComponent(id) + "/disable",
+            { method: "POST", scope: "organization" }
+          );
+          addActivity("Membership disabled", shortId(id));
+          toast("Membership disabled", shortId(id));
+          await loadMemberships();
+        } catch (error) { showError("listMembershipsResult", error); }
+      });
+    }
+
+    function bindControls() {
+      $$("[data-view-target]").forEach((button) =>
+        button.addEventListener("click", () => navigate(button.dataset.viewTarget))
+      );
+
+      $("clearActivity").addEventListener("click", () => {
+        state.activity = [];
+        persistState();
+        renderActivity();
+      });
+
+      $("saveOrganizationContext").addEventListener("click", () =>
+        useOrganization($("activeOrganizationId").value.trim())
+      );
+      $("saveRolesContext").addEventListener("click", () =>
+        useOrganization($("rolesOrganizationId").value.trim())
+      );
+      $("saveDistributionContext").addEventListener("click", () =>
+        useOrganization($("distributionOrganizationId").value.trim())
+      );
+
+      $("recipientContactType").addEventListener("change", (event) => {
+        const phone = event.currentTarget.value === "Phone";
+        const input = $("recipientContact");
+        input.type = phone ? "tel" : "email";
+        input.inputMode = phone ? "tel" : "email";
+        input.placeholder = phone ? "+905551234567" : "recipient@example.com";
+        input.previousElementSibling.textContent =
+          phone ? "Recipient phone (E.164)" : "Recipient email";
+      });
+      $("giftCardLifecycleScope").addEventListener("change", (event) => {
+        const platform = event.currentTarget.value === "platform";
+        $("giftCardLifecycleOrganizationId").disabled = platform;
+      });
+
+      $("loadSubsidiaries").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadSubsidiaries)
+      );
+      $("loadMemberships").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadMemberships)
+      );
+      $("loadRoles").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadRoles)
+      );
+      $("loadCorporateCredit").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadCorporateCredit(true))
+      );
+      $("loadMoreCreditHistory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadCorporateCredit(false))
+      );
+      $("loadGiftCardInventory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadGiftCardInventory(true))
+      );
+      $("loadMoreGiftCardInventory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadGiftCardInventory(false))
+      );
+      $("loadFinancialSummary").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadFinancialSummary)
+      );
+      $("runFinancialReconciliation").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, runFinancialReconciliation)
+      );
+      $("loadFinancialHistory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadFinancialHistory(true))
+      );
+      $("loadMoreFinancialHistory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadFinancialHistory(false))
+      );
+      $("loadMyGiftCards").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadMyGiftCards(true))
+      );
+      $("loadMyShares").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadMyShares)
+      );
+      $("cancelProtectedShare").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            await cancelProtectedShare();
+          } catch (error) {
+            showError("mySharesResult", error);
+          }
+        })
+      );
+      $("loadMoreMyGiftCards").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, () => loadMyGiftCards(false))
+      );
+      $("loadMoreMyGiftCardHistory").addEventListener("click", (event) =>
+        withBusy(
+          event.currentTarget,
+          () => loadMyGiftCard(selectedMyGiftCardId, false)
+        )
+      );
+      $("loadGiftCardLifecycleHistory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            await loadGiftCardLifecycleHistory();
+          } catch (error) {
+            showError("giftCardLifecycleResult", error);
+          }
+        })
+      );
+      $("suspendOwnedGiftCard").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            await runOwnedGiftCardLifecycle("suspend");
+          } catch (error) {
+            showError("ownedGiftCardLifecycleResult", error);
+          }
+        })
+      );
+      $("reactivateOwnedGiftCard").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            await runOwnedGiftCardLifecycle("reactivate");
+          } catch (error) {
+            showError("ownedGiftCardLifecycleResult", error);
+          }
+        })
+      );
+      $("loadOwnedGiftCardHistory").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            await loadOwnedGiftCardHistory();
+          } catch (error) {
+            showError("ownedGiftCardLifecycleResult", error);
+          }
+        })
+      );
+      $("loadClaimDelivery").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadClaimDelivery)
+      );
+      $("loadBulkGiftCardBatch").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, loadBulkGiftCardBatch)
+      );
+
+      $("refreshSession").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            const { response, body } = await api("/api/v1/auth/refresh", {
+              method: "POST",
+              auth: false,
+              body: { refreshToken: state.refreshToken },
+            });
+            state.accessToken = body.accessToken;
+            state.refreshToken = body.refreshToken;
+            state.accessTokenExpiresAtUtc = body.accessTokenExpiresAtUtc;
+            state.refreshTokenExpiresAtUtc = body.refreshTokenExpiresAtUtc;
+            persistState();
+            updateSessionUi();
+            showResult("sessionResult", true, response.status + " · Tokens rotated", {
+              accessTokenExpiresAtUtc: body.accessTokenExpiresAtUtc,
+              refreshTokenExpiresAtUtc: body.refreshTokenExpiresAtUtc,
+            });
+            addActivity("Session refreshed", state.loginIdentifier || "Authenticated user");
+            toast("Session refreshed", "The previous refresh token is now consumed.");
+          } catch (error) { showError("sessionResult", error); }
+        })
+      );
+
+      $("revokeSession").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          try {
+            const refreshToken = state.refreshToken;
+            const { response } = await api("/api/v1/auth/revoke", {
+              method: "POST",
+              auth: false,
+              body: { refreshToken },
+            });
+            const identifier = state.loginIdentifier;
+            clearSession();
+            showResult("sessionResult", true, response.status + " · Session revoked", {
+              detail: "Refresh session revoked and browser credentials cleared.",
+            });
+            addActivity("Session revoked", identifier || "Authenticated user");
+            toast("Signed out", "Session revoked successfully.");
+          } catch (error) { showError("sessionResult", error); }
+        })
+      );
+
+      document.addEventListener("click", async (event) => {
+        const target = event.target.closest("[data-copy],[data-use-organization],[data-use-user],[data-use-role],[data-disable-membership],[data-reverse-allocation],[data-distribute-card],[data-manage-card],[data-bulk-invitation],[data-use-owned-card],[data-share-card],[data-cancel-share]");
+        if (!target) return;
+
+        if (target.dataset.copy) {
+          await navigator.clipboard.writeText(target.dataset.copy);
+          toast("Copied", shortId(target.dataset.copy));
+        }
+        if (target.dataset.useOrganization) useOrganization(target.dataset.useOrganization);
+        if (target.dataset.useUser) useUser(target.dataset.useUser);
+        if (target.dataset.useRole) {
+          $("grantRoleId").value = target.dataset.useRole;
+          $("assignRoleId").value = target.dataset.useRole;
+          toast("Role selected", shortId(target.dataset.useRole));
+        }
+        if (target.dataset.disableMembership) {
+          await disableMembership(target.dataset.disableMembership, target);
+        }
+        if (target.dataset.reverseAllocation) {
+          $("reversalAllocationId").value = target.dataset.reverseAllocation;
+          toast("Allocation selected", shortId(target.dataset.reverseAllocation));
+        }
+        if (target.dataset.distributeCard) {
+          $("distributionGiftCardId").value = target.dataset.distributeCard;
+          $("distributionOrganizationId").value =
+            $("giftCardOrganizationId").value.trim() || state.activeOrganizationId;
+          navigate("activation");
+          toast("Gift card selected", shortId(target.dataset.distributeCard));
+        }
+        if (target.dataset.manageCard) {
+          $("giftCardLifecycleId").value = target.dataset.manageCard;
+          $("giftCardLifecycleOrganizationId").value =
+            $("giftCardOrganizationId").value.trim() || state.activeOrganizationId;
+          toast("Lifecycle card selected", shortId(target.dataset.manageCard));
+          $("giftCardLifecycleId").scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+        if (target.dataset.bulkInvitation) {
+          $("distributionInvitationId").value =
+            target.dataset.bulkInvitation;
+          await loadClaimDelivery();
+          $("distributionInvitationId").scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+        if (target.dataset.useOwnedCard) {
+          await withBusy(
+            target,
+            () => loadMyGiftCard(target.dataset.useOwnedCard, true)
+          );
+        }
+        if (target.dataset.shareCard) {
+          $("shareSourceGiftCardId").value = target.dataset.shareCard;
+          $("directShareSourceGiftCardId").value = target.dataset.shareCard;
+          $("shareSourceGiftCardId").scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          toast("Share source selected", shortId(target.dataset.shareCard));
+        }
+        if (target.dataset.cancelShare) {
+          $("cancelShareId").value = target.dataset.cancelShare;
+          await withBusy(target, async () => {
+            try {
+              await cancelProtectedShare();
+            } catch (error) {
+              showError("mySharesResult", error);
+            }
+          });
+        }
+      });
+    }
+
+    function seedDefaults() {
+      if (!$("organizationCode").value) $("organizationCode").value = uniqueCode("ORG");
+      if (!$("subsidiaryCode").value) $("subsidiaryCode").value = uniqueCode("SUB");
+      $("permissionNames").value =
+        "organization.view, organization.memberships.view, organization.create_subsidiary, organization.corporate_credits.view, organization.gift_cards.issue, organization.gift_cards.view, organization.gift_cards.distribute, organization.gift_cards.lifecycle.manage";
+      if (!$("creditBusinessReference").value) {
+        $("creditBusinessReference").value = "CONTRACT-" + uniqueCode("REF");
+      }
+      if (!$("creditIdempotencyKey").value) {
+        $("creditIdempotencyKey").value = "allocation-" + crypto.randomUUID();
+      }
+      if (!$("reversalIdempotencyKey").value) {
+        $("reversalIdempotencyKey").value = "reversal-" + crypto.randomUUID();
+      }
+      if (!$("giftCardBusinessReference").value) {
+        $("giftCardBusinessReference").value = "AWARD-" + uniqueCode("REF");
+      }
+      if (!$("giftCardIdempotencyKey").value) {
+        $("giftCardIdempotencyKey").value = "gift-card-" + crypto.randomUUID();
+      }
+      if (!$("giftCardLifecycleIdempotencyKey").value) {
+        $("giftCardLifecycleIdempotencyKey").value =
+          "lifecycle-" + crypto.randomUUID();
+      }
+      if (!$("distributionBusinessReference").value) {
+        $("distributionBusinessReference").value = "DELIVERY-" + uniqueCode("REF");
+      }
+      if (!$("distributionIdempotencyKey").value) {
+        $("distributionIdempotencyKey").value = "distribution-" + crypto.randomUUID();
+      }
+      if (!$("bulkBatchReference").value) {
+        $("bulkBatchReference").value = "BATCH-" + uniqueCode("REF");
+      }
+      if (!$("bulkBatchIdempotencyKey").value) {
+        $("bulkBatchIdempotencyKey").value = "bulk-" + crypto.randomUUID();
+      }
+      if (!$("bulkBatchRecipients").value) {
+        $("bulkBatchRecipients").value =
+          "recipient.one@example.com\n+905551234567\nrecipient.two@example.com";
+      }
+      if (!$("claimIdempotencyKey").value) {
+        $("claimIdempotencyKey").value = "claim-" + crypto.randomUUID();
+      }
+      if (!$("shareCreateIdempotencyKey").value) {
+        $("shareCreateIdempotencyKey").value =
+          "share-create-" + crypto.randomUUID();
+      }
+      if (!$("shareClaimIdempotencyKey").value) {
+        $("shareClaimIdempotencyKey").value =
+          "share-claim-" + crypto.randomUUID();
+      }
+      if (!$("directShareCreateIdempotencyKey").value) {
+        $("directShareCreateIdempotencyKey").value =
+          "share-direct-create-" + crypto.randomUUID();
+      }
+      if (!$("directShareClaimIdempotencyKey").value) {
+        $("directShareClaimIdempotencyKey").value =
+          "share-direct-claim-" + crypto.randomUUID();
+      }
+      if (!$("giftCardExpiresAt").value) {
+        const expiry = new Date();
+        expiry.setFullYear(expiry.getFullYear() + 1);
+        $("giftCardExpiresAt").value = expiry.toISOString().slice(0, 16);
+      }
+      if (!$("bulkBatchExpiresAt").value) {
+        const batchExpiry = new Date();
+        batchExpiry.setFullYear(batchExpiry.getFullYear() + 1);
+        $("bulkBatchExpiresAt").value =
+          batchExpiry.toISOString().slice(0, 16);
+      }
+    }
+
+    restoreState();
+    seedDefaults();
+    bindForms();
+    bindControls();
+    renderActivity();
+    renderRecentRecords();
+    updateSessionUi();
+    window.setInterval(updateCountdown, 1000);
+
+    const activationToken = extractClaimToken(location.href);
+    const hashRoute = location.hash.startsWith("#/")
+      ? location.hash.slice(2).split("?")[0]
+      : "";
+    const initialView = hashRoute === "claim" ? "activation" : (hashRoute || "overview");
+    navigate($("view-" + initialView) ? initialView : "overview");
+    if (activationToken) {
+      $("claimToken").value = activationToken;
+      navigate("activation");
+      toast("Activation link loaded", "Choose a password if this contact is new.");
+    }
+
+    fetch("/health")
+      .then((response) => setApiStatus(response.ok, response.ok ? "API connected" : "API unavailable"))
+      .catch(() => setApiStatus(false, "API unreachable"));
+  </script>
+</body>
+</html>

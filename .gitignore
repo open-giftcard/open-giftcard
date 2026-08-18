@@ -1,0 +1,45 @@
+## Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+
+## Test and coverage output
+TestResults/
+[Tt]est[Rr]esults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+## Secrets and local configuration — never commit these
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+
+## Private certificates and keys
+*.pfx
+*.p12
+*.pem
+*.key
+
+## Local database volumes / data directories
+pgdata/
+**/pgdata/
+*.pgsql-data/
+
+## IDE and editor
+.vs/
+.idea/
+*.swp
+*.suo
+
+## OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
