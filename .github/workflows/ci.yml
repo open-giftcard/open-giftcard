@@ -71,3 +71,63 @@ jobs:
           name: test-results
           path: "**/TestResults/*.trx"
           if-no-files-found: warn
+
+  compose:
+    name: docker compose up reaches a healthy API
+    runs-on: ubuntu-latest
+
+    # The documented one-command path is the first thing a visitor tries, and it
+    # cannot be verified on a developer machine without Docker. This job is where
+    # it is proven: it runs the published instructions verbatim and fails if a
+    # clean clone would not reach a healthy, migrated API.
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Create .env exactly as the README instructs
+        run: |
+          cp .env.example .env
+          # The example ships placeholders; give this run real local values.
+          python3 - <<'PY'
+          import re, secrets, base64, pathlib
+          path = pathlib.Path('.env')
+          text = path.read_text()
+          text = text.replace('change_me_locally_to_a_random_value_at_least_32_bytes',
+                              secrets.token_urlsafe(48))
+          text = text.replace('change_me_locally', secrets.token_urlsafe(24))
+          text = re.sub(r'^Partners__EpinDeliveryKey=.*$',
+                        'Partners__EpinDeliveryKey=' + base64.b64encode(secrets.token_bytes(32)).decode(),
+                        text, flags=re.M)
+          path.write_text(text)
+          PY
+
+      - name: docker compose up
+        run: docker compose up --build --detach --wait --wait-timeout 600
+
+      - name: Migrations ran as the migration owner and exited cleanly
+        run: |
+          code=$(docker inspect giftcard-migrations --format '{{.State.ExitCode}}')
+          echo "migrations exit code: $code"
+          docker logs giftcard-migrations
+          test "$code" = "0"
+          docker logs giftcard-migrations 2>&1 | grep -q 'all 12 module migrations applied'
+
+      - name: API reports ready
+        run: |
+          port=$(grep -E '^API_PORT=' .env | cut -d= -f2)
+          port=${port:-5143}
+          for attempt in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${port}/health/ready"; then
+              echo
+              echo "API ready on ${port}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "API never became ready"
+          docker compose logs api
+          exit 1
+
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs

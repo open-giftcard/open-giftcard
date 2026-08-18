@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # Creates the two PostgreSQL roles required by ADR-019 and fixes their
 # privileges. Runs once, on first container start, before any migration.
 #

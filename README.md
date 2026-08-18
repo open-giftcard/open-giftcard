@@ -103,6 +103,29 @@ broad CORS. See
 the portal and cardholder repositories, each of which pins this backend
 contract under `contracts/`.
 
+## Quick start with Docker
+
+```bash
+cp .env.example .env
+docker compose up
+```
+
+Compose brings up three services in order. PostgreSQL creates the two
+application roles and the twelve schemas from `infra/postgres/init`. A
+migrations container then applies every module's schema as the migration owner
+and exits. Only then does the API start, as the runtime role, which owns nothing
+and cannot alter its own schema (ADR-019).
+
+The API is published on `http://localhost:5143`; `GET /health/ready` reports
+when it is serving. Set `DEMO_SEED=true` in `.env` to build a demonstration
+tenant on first start: an organization with two child organizations, a company
+administrator, corporate credit, an issued and claimed card, a confirmed payment,
+and a partial refund. That seed is Development-only and is not registered in any
+other environment.
+
+Docker is not required. The native PostgreSQL path below is fully supported and
+is what the maintainer uses; the sections after it apply either way.
+
 ## Requirements
 
 - .NET 10 SDK
@@ -228,6 +251,18 @@ which is what enforces the append-only guarantee at the database level.
 ### 3. Apply migrations
 
 Migrations run as the migration owner, never as the application role.
+
+The API image applies all twelve in one step, which is what the compose
+migrations service runs:
+
+```bash
+GIFTCARD_MIGRATIONS_CONNECTION="Host=localhost;Port=5432;Database=giftcard;Username=giftcard_migrator;Password=<your migrator password>"   dotnet run --project src/GiftCardPlatform.Api -- --migrate
+```
+
+It refuses to run without that variable rather than connecting as the
+application role, which silently does nothing for already-applied modules and
+then fails on the first new one. The twelve individual commands remain valid and
+are listed here because they are useful when migrating one module at a time:
 
 ```powershell
 $env:GIFTCARD_MIGRATIONS_CONNECTION = "Host=localhost;Port=5432;Database=giftcard;Username=giftcard_migrator;Password=<your migrator password>"

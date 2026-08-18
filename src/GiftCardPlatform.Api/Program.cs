@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net;
 using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
@@ -32,6 +32,14 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.OpenApi;
 using Npgsql;
+
+// Migration mode applies every module's schema as the migration owner and exits.
+// It is a separate process on purpose: the API runs as a role that owns nothing
+// and cannot alter its own schema.
+if (DatabaseMigrator.IsRequested(args))
+{
+    return await DatabaseMigrator.RunAsync(args).ConfigureAwait(false);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 var knownProxyAddresses = builder.Configuration
@@ -516,6 +524,7 @@ app.MapGet("/health/ready", async (
     .ExcludeFromDescription();
 
 await app.RunAsync();
+return 0;
 
 /// <summary>Exposed so the integration tests can host the API with WebApplicationFactory.</summary>
 public partial class Program;

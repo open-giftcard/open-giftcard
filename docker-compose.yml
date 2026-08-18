@@ -1,3 +1,12 @@
+# One command from a clean clone to a running, populated API:
+#
+#   cp .env.example .env && docker compose up
+#
+# Three services in a deliberate order. PostgreSQL creates the two application
+# roles and the twelve schemas from its init script. The migrations service then
+# applies every module's schema as the migration owner and exits. Only then does
+# the API start, as the runtime role, which owns nothing and cannot alter its own
+# schema (ADR-019).
 services:
   postgres:
     image: postgres:17
@@ -24,6 +33,53 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # Applies all twelve module migrations, then exits 0. The API waits for it to
+  # complete successfully, so a container never serves a schema it has not got.
+  migrations:
+    build:
+      context: .
+    image: giftcard-platform-api
+    container_name: giftcard-migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GIFTCARD_MIGRATIONS_CONNECTION: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_MIGRATOR_USER};Password=${POSTGRES_MIGRATOR_PASSWORD}
+    command: ["--migrate"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+    image: giftcard-platform-api
+    container_name: giftcard-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Default: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_APP_USER};Password=${POSTGRES_APP_PASSWORD}
+      Authentication__Jwt__SigningKey: ${Authentication__Jwt__SigningKey:?set Authentication__Jwt__SigningKey in .env}
+      Bootstrap__PlatformAdministrator__Secret: ${Bootstrap__PlatformAdministrator__Secret:?set Bootstrap__PlatformAdministrator__Secret in .env}
+      Partners__EpinDeliveryKey: ${Partners__EpinDeliveryKey:?set Partners__EpinDeliveryKey in .env}
+      Partners__ClaimBaseUrl: ${Partners__ClaimBaseUrl:-http://localhost:5180/epin}
+      # Off by default. Set DEMO_SEED=true in .env to build the demonstration
+      # tenant on first start. Development only; see src/GiftCardPlatform.Api/Demo.
+      Demo__Seed__Enabled: ${DEMO_SEED:-false}
+    ports:
+      - "${API_PORT:-5143}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health/ready > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   giftcard-pgdata:
