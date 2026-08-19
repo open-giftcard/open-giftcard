@@ -177,18 +177,42 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
             organizationId).ConfigureAwait(false);
         Assert.Equal(0, unbalanced);
 
-        // The card's remaining value is derived from ledger entries, not read
-        // from a column: funded, less what the till confirmed, plus the refund.
+        // The spent card's remaining value is derived from ledger entries, not
+        // read from a column: funded, less what the till confirmed, plus the
+        // refund. Scoped to the claimed card, because the seed also leaves an
+        // untouched card in inventory so the portal's inventory screen is not
+        // empty, and summing both would assert nothing about either.
         var derived = await ScalarAsync<decimal>(
             """
             select coalesce(sum(case when e.direction = 'Credit' then e.amount else -e.amount end), 0)
             from ledger.entries e
             join ledger.accounts a on a.id = e.account_id
             join gift_cards.gift_cards g on g.id = a.gift_card_id
-            where g.funding_organization_id = @org
+            where g.funding_organization_id = @org and g.owner_user_id is not null
             """,
             organizationId).ConfigureAwait(false);
         Assert.Equal(CardAmount - PaymentAmount + RefundAmount, derived);
+
+        // The untouched card is still in organization inventory at full value.
+        // Without it the portal's first tab shows an empty state, which is how
+        // this was found.
+        Assert.Equal(
+            CardAmount,
+            await ScalarAsync<decimal>(
+                """
+                select coalesce(sum(case when e.direction = 'Credit' then e.amount else -e.amount end), 0)
+                from ledger.entries e
+                join ledger.accounts a on a.id = e.account_id
+                join gift_cards.gift_cards g on g.id = a.gift_card_id
+                where g.funding_organization_id = @org and g.owner_user_id is null
+                """,
+                organizationId).ConfigureAwait(false));
+
+        Assert.Equal(
+            2,
+            await ScalarAsync<long>(
+                "select count(*) from gift_cards.gift_cards where funding_organization_id = @org",
+                organizationId).ConfigureAwait(false));
 
         Assert.Equal(
             PaymentAmount,

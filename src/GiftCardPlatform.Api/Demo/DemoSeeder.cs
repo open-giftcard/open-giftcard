@@ -120,8 +120,23 @@ internal sealed class DemoSeeder(
         await AllocateCorporateCreditAsync(organization.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        var giftCard = await IssueGiftCardAsync(companyAdministrator, cancellationToken)
-            .ConfigureAwait(false);
+        // Two cards on purpose. One is distributed and claimed, which is the
+        // journey worth showing; but a claimed card leaves organization
+        // inventory, so seeding only that one left the portal's inventory
+        // screen empty and the demonstration looking broken on the first tab a
+        // visitor opens. The second card stays unissued so inventory, the card
+        // register, and the cardholder's own list are all populated.
+        var giftCard = await IssueGiftCardAsync(
+            companyAdministrator,
+            "DEMO-ISSUANCE-001",
+            "issuance",
+            cancellationToken).ConfigureAwait(false);
+
+        await IssueGiftCardAsync(
+            companyAdministrator,
+            "DEMO-ISSUANCE-002",
+            "issuance-inventory",
+            cancellationToken).ConfigureAwait(false);
 
         var invitation = await DistributeAsync(companyAdministrator, giftCard.Id, cancellationToken)
             .ConfigureAwait(false);
@@ -312,11 +327,13 @@ internal sealed class DemoSeeder(
     }
 
     /// <summary>
-    /// Issues one card from the organization's inventory, debiting the corporate
+    /// Issues a card from the organization's inventory, debiting the corporate
     /// credit the previous step posted.
     /// </summary>
     private async Task<GiftCardResult> IssueGiftCardAsync(
         OrganizationActor companyAdministrator,
+        string businessReference,
+        string idempotencyStep,
         CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
@@ -335,8 +352,8 @@ internal sealed class DemoSeeder(
                     now.AddYears(1),
                     IsTransferable: true,
                     IsDivisible: true,
-                    "DEMO-ISSUANCE-001",
-                    IdempotencyKey("issuance")),
+                    businessReference,
+                    IdempotencyKey(idempotencyStep)),
                 cancellationToken)
             .ConfigureAwait(false);
     }
