@@ -88,6 +88,10 @@ builder.Services.AddSharingModule(builder.Configuration);
 builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddPartnersModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
+
+// Readiness compares the applied migrations against this build. Singleton
+// because a confirmed-current schema is cached for the process lifetime.
+builder.Services.AddSingleton<SchemaReadiness>();
 builder.Services.AddHostedService<ShareExpirationWorker>();
 builder.Services.AddHostedService<PaymentProvisionExpirationWorker>();
 
@@ -501,6 +505,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 // PostgreSQL (REVIEW-001, M2).
 app.MapGet("/health/ready", async (
     ScopedDatabaseConnection database,
+    SchemaReadiness schema,
     CancellationToken cancellationToken) =>
 {
     try
@@ -508,6 +513,18 @@ app.MapGet("/health/ready", async (
         var connection = await database.OpenAsync(cancellationToken);
         await using var command = new NpgsqlCommand("select 1", connection);
         await command.ExecuteScalarAsync(cancellationToken);
+
+        // Connectivity is not readiness. A database that answers can still be
+        // carrying a schema older than this build, in which case the first
+        // request touching a new column fails with 42703 while every probe
+        // reports healthy.
+        var behind = await schema.GetModulesBehindAsync(cancellationToken);
+        if (behind.Count > 0)
+        {
+            return Results.Json(
+                new { status = "migrations-pending", modules = behind },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
         return Results.Ok(new { status = "ready" });
     }

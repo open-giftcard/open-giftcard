@@ -1,3 +1,4 @@
+using GiftCardPlatform.BuildingBlocks;
 using GiftCardPlatform.BuildingBlocks.Persistence;
 using GiftCardPlatform.Modules.CorporateCredits.Application;
 using GiftCardPlatform.Modules.CorporateCredits.Contracts;
@@ -36,4 +37,13 @@ public static class CorporateCreditsModuleExtensions
         var dbContext = scope.ServiceProvider.GetRequiredService<CorporateCreditsDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Migrations this build declares that the database has not recorded.
+    /// Empty means the schema is at or ahead of what this build expects.
+    /// </summary>
+    public static Task<IReadOnlyCollection<string>> GetPendingCorporateCreditsMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default) =>
+        serviceProvider.GetPendingMigrationsAsync<CorporateCreditsDbContext>(cancellationToken);
 }

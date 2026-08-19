@@ -1,3 +1,4 @@
+using GiftCardPlatform.BuildingBlocks;
 using GiftCardPlatform.BuildingBlocks.Persistence;
 using GiftCardPlatform.Modules.Identity.Application;
 using GiftCardPlatform.Modules.Identity.Contracts;
@@ -63,4 +64,13 @@ public static class IdentityModuleExtensions
         var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Migrations this build declares that the database has not recorded.
+    /// Empty means the schema is at or ahead of what this build expects.
+    /// </summary>
+    public static Task<IReadOnlyCollection<string>> GetPendingIdentityMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default) =>
+        serviceProvider.GetPendingMigrationsAsync<IdentityDbContext>(cancellationToken);
 }

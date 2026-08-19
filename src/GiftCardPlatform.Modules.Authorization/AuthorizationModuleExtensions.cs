@@ -1,3 +1,4 @@
+using GiftCardPlatform.BuildingBlocks;
 using GiftCardPlatform.BuildingBlocks.Persistence;
 using GiftCardPlatform.Modules.Authorization.Application;
 using GiftCardPlatform.Modules.Authorization.Contracts;
@@ -67,4 +68,13 @@ public static class AuthorizationModuleExtensions
             .EnsureAsync(dbContext, cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Migrations this build declares that the database has not recorded.
+    /// Empty means the schema is at or ahead of what this build expects.
+    /// </summary>
+    public static Task<IReadOnlyCollection<string>> GetPendingAuthorizationMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default) =>
+        serviceProvider.GetPendingMigrationsAsync<AuthorizationDbContext>(cancellationToken);
 }

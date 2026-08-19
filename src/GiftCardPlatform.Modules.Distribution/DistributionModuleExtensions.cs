@@ -1,4 +1,5 @@
-﻿using GiftCardPlatform.BuildingBlocks.Persistence;
+using GiftCardPlatform.BuildingBlocks;
+using GiftCardPlatform.BuildingBlocks.Persistence;
 using GiftCardPlatform.Modules.Distribution.Application;
 using GiftCardPlatform.Modules.Distribution.Contracts;
 using GiftCardPlatform.Modules.Distribution.Infrastructure;
@@ -97,4 +98,13 @@ public static class DistributionModuleExtensions
         var dbContext = scope.ServiceProvider.GetRequiredService<DistributionDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Migrations this build declares that the database has not recorded.
+    /// Empty means the schema is at or ahead of what this build expects.
+    /// </summary>
+    public static Task<IReadOnlyCollection<string>> GetPendingDistributionMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default) =>
+        serviceProvider.GetPendingMigrationsAsync<DistributionDbContext>(cancellationToken);
 }

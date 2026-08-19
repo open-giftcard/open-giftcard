@@ -1,3 +1,4 @@
+using GiftCardPlatform.BuildingBlocks;
 using GiftCardPlatform.BuildingBlocks.Persistence;
 using GiftCardPlatform.Modules.Audit.Application;
 using GiftCardPlatform.Modules.Audit.Contracts;
@@ -83,4 +84,13 @@ public static class AuditModuleExtensions
         var dbContext = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Migrations this build declares that the database has not recorded.
+    /// Empty means the schema is at or ahead of what this build expects.
+    /// </summary>
+    public static Task<IReadOnlyCollection<string>> GetPendingAuditMigrationsAsync(
+        this IServiceProvider serviceProvider,
+        CancellationToken cancellationToken = default) =>
+        serviceProvider.GetPendingMigrationsAsync<AuditDbContext>(cancellationToken);
 }
