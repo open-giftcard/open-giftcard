@@ -1,0 +1,49 @@
+name: Bug report
+description: Something behaves differently from what the documentation or the code says it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nothing here has been deployed anywhere, so a report against a local run
+        is the only kind there is. A reproduction is worth more than a
+        description.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The actual behaviour, including the exact error text or response body if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what told you to expect it
+      description: Point at the README, a policy document, or the code. If the documentation is what is wrong, say so here.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce it
+      description: The smallest sequence that shows it. A failing test is ideal.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`. There is no released version yet.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: How you are running it
+      description: Docker or native PostgreSQL, operating system, .NET version, and anything non-default in your configuration.
+    validations:
+      required: true

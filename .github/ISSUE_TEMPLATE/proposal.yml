@@ -1,0 +1,40 @@
+name: Proposal
+description: A change worth agreeing on before anyone writes it.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open one of these before a large change. Small fixes can go straight to
+        a pull request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard, wrong, or missing today. Describe the situation rather than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: "Include the parts that would be visible to someone using this: API surface, schema, configuration, or screens."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What else you considered
+      description: Including doing nothing. This is the most useful field in the form.
+    validations:
+      required: false
+  - type: dropdown
+    id: implement
+    attributes:
+      label: Would you implement it
+      options:
+        - Yes
+        - Yes, with guidance on the approach
+        - No, raising it for someone else
+    validations:
+      required: true

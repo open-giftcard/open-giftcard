@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/open-giftcard/open-giftcard/security/advisories/new
+    about: Private vulnerability reporting. Do not open a public issue for anything you believe is exploitable.

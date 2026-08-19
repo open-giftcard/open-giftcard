@@ -175,6 +175,17 @@ preferences.
 Do not open a public issue for a suspected vulnerability. See
 [SECURITY.md](SECURITY.md).
 
+## Conduct
+
+The project follows a [code of conduct](CODE_OF_CONDUCT.md). It applies here and
+anywhere someone is representing the project.
+
+## Changelog
+
+A change someone using this would notice belongs in
+[CHANGELOG.md](CHANGELOG.md) under `Unreleased`, in the pull request that makes
+it. Internal refactoring that changes nothing observable does not.
+
 ## Licence
 
 Contributions are accepted under the Apache License 2.0, the same terms as the
