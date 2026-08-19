@@ -10,21 +10,26 @@ and the integration suite describe the system precisely.
 
 ## Current state
 
-All four functional phases are implemented. The backend, portal, and cardholder
-repositories are published together as synchronized source candidate
-**`v0.4.0-rc.2`**.
+All four functional phases are implemented. **There is no released version.**
+This repository has no tags and no releases, and `main` is the only branch that
+receives fixes. Until a release is tagged, the only way to pin a version of this
+platform is by commit.
 
-| Repository | Tag | Commit |
-| --- | --- | --- |
-| `open-giftcard` | `v0.4.0-rc.2` | `2721f71d` |
-| `open-giftcard-portal` | `v0.4.0-rc.2` | `76bb1dd9` |
-| `open-giftcard-cardholder` | `v0.4.0-rc.2` | `e40581b9` |
+An earlier revision of this section announced a synchronized candidate
+`v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags and
+commits exist only in the private repositories this project was developed in.
+The public repositories were created from a squashed initial commit, so nothing
+in that table could be resolved here, and `SECURITY.md` already said the
+published tags predate the open-source cleanup and should not be used. The claim
+is removed rather than reworded.
 
 Each client repository pins its own capture of the backend OpenAPI document
 under `contracts/`, and each `contracts/README.md` records the backend commit
-and SHA-256 it was taken from. Those files are the authority; the two captures
-are currently not byte-identical to each other. A candidate is a reproducible
-source baseline, **not** evidence of a deployment.
+and SHA-256 it was taken from, verified in CI. Those files are the authority for
+client-to-backend compatibility.
+
+Nothing here has been deployed anywhere. See "What is not done" below, and the
+honest gap list in `SECURITY.md`.
 
 ### What works
 
@@ -544,9 +549,10 @@ GitHub/
   open-giftcard-cardholder   recipient application
 ```
 
-Check out `v0.4.0-rc.2` in each, or leave all three on `main`. They must be
+Leave all three on `main`. There are no tags to check out. They must be
 consistent: the clients are pinned to a specific backend contract and will
-refuse a mismatched revision.
+refuse a mismatched revision, and CI fails a client whose recorded contract hash
+does not match the document beside it.
 
 ### The moving parts
 
