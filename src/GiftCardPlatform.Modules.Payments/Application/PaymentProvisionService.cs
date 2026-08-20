@@ -56,6 +56,16 @@ internal sealed class PaymentProvisionService(
         ArgumentNullException.ThrowIfNull(request);
         EnsurePosDevice();
 
+        var idempotencyKey = request.IdempotencyKey?.Trim();
+        if (string.IsNullOrEmpty(idempotencyKey) ||
+            idempotencyKey.Length > PaymentProvision.IdempotencyKeyMaxLength)
+        {
+            throw new ValidationFailedException(
+                "payment.provision.idempotency_key.invalid",
+                "An idempotency key is required and may be at most " +
+                $"{PaymentProvision.IdempotencyKeyMaxLength} characters.");
+        }
+
         var hasQrToken = !string.IsNullOrWhiteSpace(request.PaymentToken);
         var hasNumericCode = !string.IsNullOrWhiteSpace(request.PaymentCode);
         if (hasQrToken == hasNumericCode)
@@ -119,6 +129,27 @@ internal sealed class PaymentProvisionService(
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"select pg_advisory_xact_lock(hashtextextended({$"payment-token|{tokenId:D}"}, 0))",
             cancellationToken).ConfigureAwait(false);
+
+        // Answer a retry before going anywhere near the credential. The
+        // credential is single use, so a till repeating a request whose response
+        // it never received would otherwise be refused as a replay: correct for
+        // an attacker, useless for a cashier whose network dropped mid-sale.
+        var replayed = await dbContext.Provisions.SingleOrDefaultAsync(
+            provision => provision.PosClientId == executionContext.PosClientId!.Value &&
+                provision.IdempotencyKey == idempotencyKey,
+            cancellationToken).ConfigureAwait(false);
+        if (replayed is not null)
+        {
+            if (!replayed.Matches(tokenId, request.Amount, request.PosTransactionReference))
+            {
+                throw new ConflictException(
+                    "payment.provision.idempotency_conflict",
+                    "The idempotency key was already used with different payment intent.");
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return ToResult(replayed);
+        }
 
         var token = await dbContext.Tokens
             .SingleOrDefaultAsync(item => item.Id == tokenId, cancellationToken)
@@ -203,6 +234,7 @@ internal sealed class PaymentProvisionService(
             executionContext.PosTerminalId!.Value,
             await ResolveStoreReferenceAsync(cancellationToken).ConfigureAwait(false),
             request.PosTransactionReference,
+            idempotencyKey,
             amountToHold,
             request.Amount,
             balance.Currency,

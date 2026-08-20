@@ -506,7 +506,11 @@ internal sealed class DemoSeeder(
                         rawToken,
                         PaymentCode: null,
                         _options.PaymentAmount,
-                        "DEMO-SALE-001"),
+                        "DEMO-SALE-001",
+                        // Stable rather than generated, which is what the seed's
+                        // idempotency needs: a second run is answered with the
+                        // first run's hold instead of taking another one.
+                        IdempotencyKey: "demo-seed-provision-001"),
                     cancellationToken)
                 .ConfigureAwait(false);
 

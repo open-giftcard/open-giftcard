@@ -20,6 +20,7 @@ internal enum PaymentProvisionState
 internal sealed class PaymentProvision
 {
     public const int PosTransactionReferenceMaxLength = 64;
+    public const int IdempotencyKeyMaxLength = 64;
     public const int GiftCardPublicReferenceMaxLength = 32;
     public const decimal MaximumAmount = 1_000_000_000m;
     public const int AmountScale = 4;
@@ -53,6 +54,18 @@ internal sealed class PaymentProvision
     /// </summary>
     public string? PosTransactionReference { get; private init; }
 
+    /// <summary>
+    /// The till's own name for this attempt, unique per POS client.
+    ///
+    /// Without it a lost response is unrecoverable: the credential is consumed
+    /// server-side, the till never learns the provision id, and it cannot cancel
+    /// a hold it cannot name. The customer's value then sits reserved until the
+    /// window expires. Retrying without a key looks exactly like a replay and is
+    /// refused, which is correct for an attacker and useless for a cashier whose
+    /// network dropped.
+    /// </summary>
+    public string IdempotencyKey { get; private init; } = string.Empty;
+
     /// <summary>The value actually held. Never above <see cref="RequestedAmount"/>.</summary>
     public decimal Amount { get; private init; }
 
@@ -66,6 +79,28 @@ internal sealed class PaymentProvision
     /// Equal to <see cref="Amount"/> whenever the card covered the whole sale.
     /// </summary>
     public decimal RequestedAmount { get; private init; }
+
+    /// <summary>
+    /// Whether a retry carrying the same idempotency key describes the same
+    /// attempt. A key reused with different intent is a caller bug, not a retry,
+    /// and must be refused rather than silently answered with someone else's
+    /// hold.
+    /// </summary>
+    public bool Matches(
+        Guid paymentTokenId,
+        decimal requestedAmount,
+        string? posTransactionReference)
+    {
+        var reference = posTransactionReference?.Trim();
+        if (reference is { Length: 0 })
+        {
+            reference = null;
+        }
+
+        return PaymentTokenId == paymentTokenId &&
+            RequestedAmount == requestedAmount &&
+            string.Equals(PosTransactionReference, reference, StringComparison.Ordinal);
+    }
 
     /// <summary>True when the card could not cover the whole sale.</summary>
     public bool IsPartialApproval => Amount < RequestedAmount;
@@ -97,6 +132,7 @@ internal sealed class PaymentProvision
         Guid posTerminalId,
         string storeReference,
         string? posTransactionReference,
+        string? idempotencyKey,
         decimal amount,
         decimal requestedAmount,
         string currency,
@@ -166,6 +202,16 @@ internal sealed class PaymentProvision
                 $"A POS transaction reference may be at most {PosTransactionReferenceMaxLength} characters.");
         }
 
+        var normalizedKey = idempotencyKey?.Trim();
+        if (string.IsNullOrEmpty(normalizedKey) ||
+            normalizedKey.Length > IdempotencyKeyMaxLength)
+        {
+            throw new ValidationFailedException(
+                "payment.provision.idempotency_key.invalid",
+                "An idempotency key is required and may be at most " +
+                $"{IdempotencyKeyMaxLength} characters.");
+        }
+
         var createdAt = TruncateToPostgresPrecision(now);
         return new PaymentProvision
         {
@@ -179,6 +225,7 @@ internal sealed class PaymentProvision
             PosTerminalId = posTerminalId,
             StoreReference = storeReference,
             PosTransactionReference = reference,
+            IdempotencyKey = normalizedKey,
             Amount = amount,
             RequestedAmount = requestedAmount,
             Currency = currency,

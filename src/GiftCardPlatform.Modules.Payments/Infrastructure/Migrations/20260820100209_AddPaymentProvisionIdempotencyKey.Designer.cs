@@ -3,6 +3,7 @@ using System;
 using GiftCardPlatform.Modules.Payments.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GiftCardPlatform.Modules.Payments.Infrastructure.Migrations
 {
     [DbContext(typeof(PaymentsDbContext))]
-    partial class PaymentsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820100209_AddPaymentProvisionIdempotencyKey")]
+    partial class AddPaymentProvisionIdempotencyKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

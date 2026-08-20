@@ -72,6 +72,15 @@ internal sealed class PaymentProvisionConfiguration : IEntityTypeConfiguration<P
         builder.Property(provision => provision.PosTransactionReference)
             .HasColumnName("pos_transaction_reference")
             .HasMaxLength(PaymentProvision.PosTransactionReferenceMaxLength);
+        builder.Property(provision => provision.IdempotencyKey)
+            .HasColumnName("idempotency_key")
+            .HasMaxLength(PaymentProvision.IdempotencyKeyMaxLength)
+            .IsRequired();
+        // Scoped to the client, not globally: two shops choosing the same key is
+        // not a collision, and a client replaying its own key is exactly the
+        // retry this exists to answer.
+        builder.HasIndex(provision => new { provision.PosClientId, provision.IdempotencyKey })
+            .IsUnique().HasDatabaseName("ux_payment_provisions_client_idempotency");
         builder.Property(provision => provision.Amount)
             .HasColumnName("amount").HasColumnType("numeric(20,4)").IsRequired();
         builder.Property(provision => provision.RequestedAmount)

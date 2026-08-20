@@ -73,12 +73,21 @@ public interface IPaymentReservationQuery
 /// knows the balance. This mirrors card networks, where a terminal must signal
 /// that it supports partial authorization before an issuer will give one.
 /// </param>
+/// <param name="IdempotencyKey">
+/// The till's own name for this attempt. Required, because without it a lost
+/// response cannot be recovered: the credential is consumed server-side, the
+/// till never learns the provision id, and it cannot cancel a hold it cannot
+/// name, so the customer's value stays reserved until the window expires.
+/// Retrying with the same key returns the original hold instead of being refused
+/// as a replay. Reusing it with different intent is a conflict.
+/// </param>
 public sealed record CreatePaymentProvisionRequest(
     string? PaymentToken,
     string? PaymentCode,
     decimal Amount,
     string? PosTransactionReference,
-    bool AllowPartialApproval = false);
+    bool AllowPartialApproval = false,
+    string? IdempotencyKey = null);
 
 public sealed record ConfirmPaymentProvisionRequest(decimal Amount);
 

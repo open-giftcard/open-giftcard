@@ -45,7 +45,7 @@ public sealed class PaymentRefundTests
         var provision = PaymentProvision.Create(
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), "GC-REFUND",
             Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(),
-            Guid.CreateVersion7(), "STORE-1", "SALE-42", 50m, 50m, "TRY", Now, 120);
+            Guid.CreateVersion7(), "STORE-1", "SALE-42", "idem-refund", 50m, 50m, "TRY", Now, 120);
         provision.Confirm(40m, Guid.CreateVersion7(), Now.AddSeconds(30));
         return provision;
     }

@@ -1176,15 +1176,19 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
         World world,
         string? token,
         decimal amount,
-        bool allowPartialApproval = false) =>
+        bool allowPartialApproval = false,
+        string? idempotencyKey = null,
+        string? posTransactionReference = null) =>
         world.Pos.PostAsJsonAsync(
             "/api/v1/pos/payment-provisions",
             new
             {
                 paymentToken = token,
                 amount,
-                posTransactionReference = "SALE-" + Guid.NewGuid().ToString("N")[..8],
+                posTransactionReference =
+                    posTransactionReference ?? "SALE-" + Guid.NewGuid().ToString("N")[..8],
                 allowPartialApproval,
+                idempotencyKey = idempotencyKey ?? "idem-" + Guid.NewGuid().ToString("N"),
             });
 
     private static Task<HttpResponseMessage> PostNumericProvisionAsync(
@@ -1210,6 +1214,7 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
                 paymentCode,
                 amount,
                 posTransactionReference = "SALE-" + Guid.NewGuid().ToString("N")[..8],
+                idempotencyKey = "idem-" + Guid.NewGuid().ToString("N"),
             });
 
     private async Task<HttpClient> ArrangePosAsync()
@@ -1628,4 +1633,86 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
         decimal AvailableAmount,
         string Currency,
         DateTimeOffset ExpiresAtUtc);
+
+    [Fact]
+    public async Task A_retry_after_a_lost_response_returns_the_original_hold()
+    {
+        // The failure this exists for: the server took the hold, the response
+        // never arrived, and the credential is now spent. Without a key the
+        // retry is refused as a replay and the till cannot name, and so cannot
+        // cancel, the hold holding its customer's money.
+        var world = await ArrangeAsync(cardAmount: 100m);
+        var token = await IssueTokenAsync(world);
+        var key = "idem-" + Guid.NewGuid().ToString("N");
+        var reference = "SALE-RETRY";
+
+        var first = await PostProvisionAsync(
+            world, token, amount: 40m, idempotencyKey: key, posTransactionReference: reference);
+        var retry = await PostProvisionAsync(
+            world, token, amount: 40m, idempotencyKey: key, posTransactionReference: reference);
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
+        var original = await first.Content.ReadFromJsonAsync<PaymentProvisionResponse>(JsonOptions);
+        var replayed = await retry.Content.ReadFromJsonAsync<PaymentProvisionResponse>(JsonOptions);
+        Assert.NotNull(original);
+        Assert.NotNull(replayed);
+        Assert.Equal(original.Id, replayed.Id);
+        Assert.Equal(original.Amount, replayed.Amount);
+    }
+
+    [Fact]
+    public async Task A_retry_holds_the_card_value_only_once()
+    {
+        var world = await ArrangeAsync(cardAmount: 100m);
+        var token = await IssueTokenAsync(world);
+        var key = "idem-" + Guid.NewGuid().ToString("N");
+
+        await PostProvisionAsync(world, token, amount: 40m, idempotencyKey: key,
+            posTransactionReference: "SALE-ONCE");
+        await PostProvisionAsync(world, token, amount: 40m, idempotencyKey: key,
+            posTransactionReference: "SALE-ONCE");
+
+        var detail = await world.Owner.GetFromJsonAsync<OwnedGiftCardDetail>(
+            $"/api/v1/me/gift-cards/{world.GiftCardId}",
+            JsonOptions);
+
+        Assert.NotNull(detail);
+        Assert.Equal(40m, detail.ReservedBalance);
+    }
+
+    [Fact]
+    public async Task Reusing_a_key_with_different_intent_is_a_conflict()
+    {
+        // A reused key with a changed amount is a caller bug, not a retry, and
+        // must not be answered with a hold for a different sale.
+        var world = await ArrangeAsync(cardAmount: 100m);
+        var token = await IssueTokenAsync(world);
+        var key = "idem-" + Guid.NewGuid().ToString("N");
+
+        var first = await PostProvisionAsync(world, token, amount: 40m, idempotencyKey: key,
+            posTransactionReference: "SALE-INTENT");
+        first.EnsureSuccessStatusCode();
+        var changed = await PostProvisionAsync(world, token, amount: 55m, idempotencyKey: key,
+            posTransactionReference: "SALE-INTENT");
+
+        Assert.Equal(HttpStatusCode.Conflict, changed.StatusCode);
+        Assert.Contains(
+            "idempotency_conflict",
+            await changed.Content.ReadAsStringAsync(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_provision_without_an_idempotency_key_is_refused()
+    {
+        var world = await ArrangeAsync(cardAmount: 100m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/payment-provisions",
+            new { paymentToken = token, amount = 10m });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
