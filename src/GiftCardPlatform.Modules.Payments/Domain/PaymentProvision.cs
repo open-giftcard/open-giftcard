@@ -53,7 +53,22 @@ internal sealed class PaymentProvision
     /// </summary>
     public string? PosTransactionReference { get; private init; }
 
+    /// <summary>The value actually held. Never above <see cref="RequestedAmount"/>.</summary>
     public decimal Amount { get; private init; }
+
+    /// <summary>
+    /// What the till asked for, which is the sale total it was trying to settle.
+    ///
+    /// Stored rather than derived because a partial approval is a fact about the
+    /// sale that outlives the request: reconciliation, receipts, and disputes all
+    /// need to know that a hold of 30 was the answer to a question about 50, and
+    /// a later GET of this provision cannot reconstruct that from the hold alone.
+    /// Equal to <see cref="Amount"/> whenever the card covered the whole sale.
+    /// </summary>
+    public decimal RequestedAmount { get; private init; }
+
+    /// <summary>True when the card could not cover the whole sale.</summary>
+    public bool IsPartialApproval => Amount < RequestedAmount;
 
     public string Currency { get; private init; } = string.Empty;
 
@@ -83,6 +98,7 @@ internal sealed class PaymentProvision
         string storeReference,
         string? posTransactionReference,
         decimal amount,
+        decimal requestedAmount,
         string currency,
         DateTimeOffset now,
         int windowSeconds)
@@ -110,6 +126,24 @@ internal sealed class PaymentProvision
             throw new ValidationFailedException(
                 "payment.provision.amount.invalid",
                 "A provision amount must be positive with at most four decimal places.");
+        }
+
+        if (requestedAmount <= 0 || requestedAmount > MaximumAmount ||
+            decimal.Round(requestedAmount, AmountScale) != requestedAmount)
+        {
+            throw new ValidationFailedException(
+                "payment.provision.requested_amount.invalid",
+                "A requested amount must be positive with at most four decimal places.");
+        }
+
+        // Holding more than the till asked for would let a partial approval
+        // overcharge, which is the one way this feature could take money that
+        // was never requested.
+        if (amount > requestedAmount)
+        {
+            throw new ValidationFailedException(
+                "payment.provision.amount.above_requested",
+                "A hold can never exceed the amount the till requested.");
         }
 
         if (windowSeconds <= 0)
@@ -146,6 +180,7 @@ internal sealed class PaymentProvision
             StoreReference = storeReference,
             PosTransactionReference = reference,
             Amount = amount,
+            RequestedAmount = requestedAmount,
             Currency = currency,
             State = PaymentProvisionState.Active,
             CreatedAtUtc = createdAt,

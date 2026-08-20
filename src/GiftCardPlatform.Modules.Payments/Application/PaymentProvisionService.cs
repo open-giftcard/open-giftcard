@@ -158,11 +158,37 @@ internal sealed class PaymentProvisionService(
             now,
             cancellationToken).ConfigureAwait(false);
         var available = balance.Amount - shared - provisioned;
+
+        // A gift card usually cannot settle a whole basket, and the customer
+        // rarely knows the balance, so being asked for more than the card holds
+        // is the ordinary case rather than an error. A till that says it can
+        // collect the remainder is approved for what is actually there; one that
+        // has not said so keeps the refusal, because approving it for less than
+        // it asked without its knowledge would under-charge the sale.
+        var amountToHold = request.Amount;
         if (request.Amount > available)
         {
-            throw new ConflictException(
-                "payment.provision.insufficient_value",
-                "The card does not have enough available value for this payment.");
+            if (!request.AllowPartialApproval || available <= 0)
+            {
+                throw new ConflictException(
+                    "payment.provision.insufficient_value",
+                    "The card does not have enough available value for this payment.");
+            }
+
+            amountToHold = decimal.Round(available, PaymentProvision.AmountScale);
+
+            // Rounding must never invent value the card does not have.
+            if (amountToHold > available)
+            {
+                amountToHold -= (decimal)Math.Pow(10, -PaymentProvision.AmountScale);
+            }
+
+            if (amountToHold <= 0)
+            {
+                throw new ConflictException(
+                    "payment.provision.insufficient_value",
+                    "The card does not have enough available value for this payment.");
+            }
         }
 
         var provision = PaymentProvision.Create(
@@ -176,6 +202,7 @@ internal sealed class PaymentProvisionService(
             executionContext.PosTerminalId!.Value,
             await ResolveStoreReferenceAsync(cancellationToken).ConfigureAwait(false),
             request.PosTransactionReference,
+            amountToHold,
             request.Amount,
             balance.Currency,
             now,
@@ -643,6 +670,8 @@ internal sealed class PaymentProvisionService(
             provision.GiftCardId,
             provision.GiftCardPublicReference,
             provision.Amount,
+            provision.RequestedAmount,
+            provision.RequestedAmount - provision.Amount,
             provision.Currency,
             provision.State.ToString(),
             provision.StoreReference,

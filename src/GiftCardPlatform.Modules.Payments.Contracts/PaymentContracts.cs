@@ -62,11 +62,23 @@ public interface IPaymentReservationQuery
         CancellationToken cancellationToken);
 }
 
+/// <param name="Amount">The sale total the till is trying to settle.</param>
+/// <param name="AllowPartialApproval">
+/// Whether the till can handle being approved for less than it asked for.
+///
+/// Defaults to false, so a caller that has not been written to read the approved
+/// amount back cannot be silently under-charged: it keeps the original refusal.
+/// A till that sets this is stating it will collect the remainder by another
+/// tender, which is how a gift card is normally used, since the customer rarely
+/// knows the balance. This mirrors card networks, where a terminal must signal
+/// that it supports partial authorization before an issuer will give one.
+/// </param>
 public sealed record CreatePaymentProvisionRequest(
     string? PaymentToken,
     string? PaymentCode,
     decimal Amount,
-    string? PosTransactionReference);
+    string? PosTransactionReference,
+    bool AllowPartialApproval = false);
 
 public sealed record ConfirmPaymentProvisionRequest(decimal Amount);
 
@@ -90,11 +102,23 @@ public sealed record PaymentRefundResult(
     DateTimeOffset RefundedAtUtc,
     decimal RemainingRefundableAmount);
 
+/// <param name="Amount">
+/// The value actually held. Compare it against <paramref name="RequestedAmount"/>:
+/// when it is lower, the card did not cover the sale and the difference is still
+/// owed by another tender.
+/// </param>
+/// <param name="RequestedAmount">The sale total the till asked to settle.</param>
+/// <param name="OutstandingAmount">
+/// What is still owed, stated rather than left to the caller's arithmetic
+/// because getting it wrong means a customer walks out having underpaid.
+/// </param>
 public sealed record PaymentProvisionResult(
     Guid Id,
     Guid GiftCardId,
     string GiftCardPublicReference,
     decimal Amount,
+    decimal RequestedAmount,
+    decimal OutstandingAmount,
     string Currency,
     string State,
     string StoreReference,

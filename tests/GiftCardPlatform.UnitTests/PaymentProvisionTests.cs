@@ -92,13 +92,15 @@ public sealed class PaymentProvisionTests
             "STORE-1",
             null,
             10m,
+            10m,
             "TRY",
             Now,
             120));
 
     private static PaymentProvision CreateProvision(
         decimal amount = 10m,
-        string? posTransactionReference = null) =>
+        string? posTransactionReference = null,
+        decimal? requestedAmount = null) =>
         PaymentProvision.Create(
             Guid.CreateVersion7(),
             Guid.CreateVersion7(),
@@ -111,6 +113,7 @@ public sealed class PaymentProvisionTests
             "STORE-1",
             posTransactionReference,
             amount,
+            requestedAmount ?? amount,
             "TRY",
             Now,
             windowSeconds: 120);
@@ -156,5 +159,51 @@ public sealed class PaymentProvisionTests
             10m,
             Guid.CreateVersion7(),
             Now.AddSeconds(20)));
+    }
+
+    [Fact]
+    public void A_hold_can_never_exceed_what_the_till_asked_for()
+    {
+        // The one way partial approval could take money nobody requested.
+        var failure = Assert.Throws<ValidationFailedException>(
+            () => CreateProvision(amount: 50m, requestedAmount: 30m));
+
+        Assert.Equal("payment.provision.amount.above_requested", failure.Code);
+    }
+
+    [Fact]
+    public void A_full_approval_reports_nothing_outstanding()
+    {
+        var provision = CreateProvision(amount: 30m, requestedAmount: 30m);
+
+        Assert.False(provision.IsPartialApproval);
+        Assert.Equal(0m, provision.RequestedAmount - provision.Amount);
+    }
+
+    [Fact]
+    public void A_partial_approval_remembers_what_the_sale_needed()
+    {
+        // The hold alone cannot tell reconciliation that 30 was the answer to a
+        // question about 50, which is why the requested amount is stored.
+        var provision = CreateProvision(amount: 30m, requestedAmount: 50m);
+
+        Assert.True(provision.IsPartialApproval);
+        Assert.Equal(30m, provision.Amount);
+        Assert.Equal(50m, provision.RequestedAmount);
+        Assert.Equal(20m, provision.RequestedAmount - provision.Amount);
+    }
+
+    [Fact]
+    public void A_partial_approval_still_confirms_only_up_to_the_held_amount()
+    {
+        var provision = CreateProvision(amount: 30m, requestedAmount: 50m);
+
+        // The sale total must not become a licence to charge it.
+        var failure = Assert.Throws<ConflictException>(
+            () => provision.Confirm(50m, Guid.CreateVersion7(), Now.AddSeconds(10)));
+        Assert.Equal("payment.confirmation.amount.exceeds_provision", failure.Code);
+
+        provision.Confirm(30m, Guid.CreateVersion7(), Now.AddSeconds(10));
+        Assert.Equal(30m, provision.ConfirmedAmount);
     }
 }

@@ -1175,7 +1175,8 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
     private static Task<HttpResponseMessage> PostProvisionAsync(
         World world,
         string? token,
-        decimal amount) =>
+        decimal amount,
+        bool allowPartialApproval = false) =>
         world.Pos.PostAsJsonAsync(
             "/api/v1/pos/payment-provisions",
             new
@@ -1183,6 +1184,7 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
                 paymentToken = token,
                 amount,
                 posTransactionReference = "SALE-" + Guid.NewGuid().ToString("N")[..8],
+                allowPartialApproval,
             });
 
     private static Task<HttpResponseMessage> PostNumericProvisionAsync(
@@ -1446,4 +1448,78 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
     private sealed record InvitationIdResponse(Guid Id);
 
     private sealed record DeliveryUrlResponse(string ClaimUrl);
+
+    [Fact]
+    public async Task A_till_that_has_not_asked_for_partial_approval_is_still_refused()
+    {
+        // The default must not change under an integration written before this
+        // existed: being approved for less than it asked, without saying it can
+        // handle that, would silently under-charge the sale.
+        var world = await ArrangeAsync(cardAmount: 30m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await PostProvisionAsync(world, token, amount: 50m);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadAsStringAsync();
+        Assert.Contains("insufficient_value", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_till_that_can_split_the_tender_is_approved_for_what_the_card_holds()
+    {
+        var world = await ArrangeAsync(cardAmount: 30m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await PostProvisionAsync(
+            world, token, amount: 50m, allowPartialApproval: true);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var provision = await response.Content.ReadFromJsonAsync<PaymentProvisionResponse>(JsonOptions);
+        Assert.NotNull(provision);
+        Assert.Equal(30m, provision.Amount);
+        Assert.Equal(50m, provision.RequestedAmount);
+        Assert.Equal(20m, provision.OutstandingAmount);
+        Assert.Equal("Active", provision.State);
+    }
+
+    [Fact]
+    public async Task A_partial_approval_holds_only_what_it_approved()
+    {
+        // The rest of the card must stay spendable, so abandoning the sale does
+        // not strand value that was never approved.
+        var world = await ArrangeAsync(cardAmount: 30m);
+        var token = await IssueTokenAsync(world);
+        var response = await PostProvisionAsync(
+            world, token, amount: 50m, allowPartialApproval: true);
+        response.EnsureSuccessStatusCode();
+
+        var detail = await world.Owner.GetFromJsonAsync<OwnedGiftCardDetail>(
+            $"/api/v1/me/gift-cards/{world.GiftCardId}",
+            JsonOptions);
+
+        Assert.NotNull(detail);
+        Assert.Equal(30m, detail.ReservedBalance);
+        Assert.Equal(0m, detail.AvailableBalance);
+    }
+
+    [Fact]
+    public async Task A_card_with_nothing_left_is_refused_even_with_partial_approval()
+    {
+        var world = await ArrangeAsync(cardAmount: 100m);
+        await CreateProvisionAsync(world, amount: 100m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await PostProvisionAsync(
+            world, token, amount: 50m, allowPartialApproval: true);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    private sealed record PaymentProvisionResponse(
+        Guid Id,
+        decimal Amount,
+        decimal RequestedAmount,
+        decimal OutstandingAmount,
+        string State);
 }

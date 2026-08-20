@@ -74,6 +74,9 @@ internal sealed class PaymentProvisionConfiguration : IEntityTypeConfiguration<P
             .HasMaxLength(PaymentProvision.PosTransactionReferenceMaxLength);
         builder.Property(provision => provision.Amount)
             .HasColumnName("amount").HasColumnType("numeric(20,4)").IsRequired();
+        builder.Property(provision => provision.RequestedAmount)
+            .HasColumnName("requested_amount").HasColumnType("numeric(20,4)").IsRequired();
+        builder.Ignore(provision => provision.IsPartialApproval);
         builder.Property(provision => provision.Currency)
             .HasColumnName("currency").HasMaxLength(3).IsRequired();
         builder.Property(provision => provision.State)
