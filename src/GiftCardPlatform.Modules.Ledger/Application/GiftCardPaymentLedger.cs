@@ -68,6 +68,60 @@ internal sealed class GiftCardPaymentLedger(
         return new GiftCardLockedBalanceResult(giftCardId, account.Id, account.Currency, balance);
     }
 
+    public async Task<GiftCardLockedBalanceResult> GetBalanceAsync(
+        Guid giftCardId,
+        CancellationToken cancellationToken)
+    {
+        EnsurePaymentScope();
+        if (giftCardId == Guid.Empty)
+        {
+            throw new ValidationFailedException(
+                "ledger.gift_card.required",
+                "A gift card is required.");
+        }
+
+        // Deliberately no value lock and no serializable isolation. This answers
+        // a question; it never decides what to reserve or post. Locking here
+        // would put a repeatable read in the path of every share and payment on
+        // the card.
+        await using var transaction = await transactionCoordinator
+            .BeginAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+
+        var account = await dbContext.Accounts
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(
+                item => item.Type == LedgerAccountType.GiftCardValue &&
+                    item.GiftCardId == giftCardId,
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new ConflictException(
+                "ledger.gift_card.account.missing",
+                "The gift-card value account is not available.");
+
+        var balance = await dbContext.Entries
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(entry => entry.AccountId == account.Id)
+            .SumAsync(
+                entry => (decimal?)(entry.Direction == LedgerEntryDirection.Credit
+                    ? entry.Amount
+                    : -entry.Amount),
+                cancellationToken)
+            .ConfigureAwait(false) ?? 0m;
+        if (balance < 0)
+        {
+            throw new ConflictException(
+                "ledger.gift_card.balance.invalid",
+                "Gift-card balance is invalid.");
+        }
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return new GiftCardLockedBalanceResult(giftCardId, account.Id, account.Currency, balance);
+    }
+
     public async Task<GiftCardRedemptionResult> RecordRedemptionAsync(
         RecordGiftCardRedemptionRequest request,
         CancellationToken cancellationToken)

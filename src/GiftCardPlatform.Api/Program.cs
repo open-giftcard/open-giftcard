@@ -219,6 +219,13 @@ var claimPermitLimit =
     builder.Configuration.GetValue<int?>("Distribution:ClaimRateLimit:PermitLimit") ?? 10;
 var paymentPermitLimit =
     builder.Configuration.GetValue<int?>("Payments:RedemptionRateLimit:PermitLimit") ?? 60;
+// Its own budget, and partitioned per terminal rather than per client, so a lane
+// reading balances cannot exhaust the allowance its shop needs to take payments,
+// and a single misbehaving lane is contained. A cashier inquires about once per
+// sale, so this is generous for real use and still bounds how fast a stolen
+// device token could sweep balances.
+var balanceInquiryPermitLimit =
+    builder.Configuration.GetValue<int?>("Payments:BalanceInquiryRateLimit:PermitLimit") ?? 30;
 // Deliberately tighter than the payment limit. A reseller exchanges credentials
 // once per token lifetime, not once per order, so a legitimate integration needs
 // very few; anything more is a brute-force attempt against a minting credential.
@@ -262,6 +269,11 @@ if (paymentPermitLimit < 1)
 {
     throw new InvalidOperationException(
         "Payments:RedemptionRateLimit:PermitLimit must be greater than zero.");
+}
+if (balanceInquiryPermitLimit < 1)
+{
+    throw new InvalidOperationException(
+        "Payments:BalanceInquiryRateLimit:PermitLimit must be greater than zero.");
 }
 
 builder.Services.AddRateLimiter(options =>
@@ -337,6 +349,25 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = paymentPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
+    options.AddPolicy(PaymentEndpoints.BalanceInquiryRateLimitPolicy, context =>
+    {
+        var executionContext = context.RequestServices
+            .GetRequiredService<IExecutionContext>();
+        var partition = executionContext.PosTerminalId is { } posTerminalId
+            ? $"pos-terminal:{posTerminalId:N}"
+            : executionContext.PosClientId is { } posClientId
+                ? $"pos:{posClientId:N}"
+                : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = balanceInquiryPermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true,

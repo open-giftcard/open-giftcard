@@ -82,6 +82,45 @@ public sealed record CreatePaymentProvisionRequest(
 
 public sealed record ConfirmPaymentProvisionRequest(decimal Amount);
 
+/// <summary>
+/// A till asking what a presented card is worth, before deciding how to split
+/// the tender.
+/// </summary>
+public sealed record PaymentBalanceInquiryRequest(
+    string? PaymentToken,
+    string? PaymentCode);
+
+/// <param name="AvailableAmount">
+/// Spendable now: posted value less every active hold, of either kind. This is
+/// the number a cashier should be told, not the posted balance, because value
+/// already promised to a share or another till cannot be spent here.
+/// </param>
+/// <param name="ExpiresAtUtc">
+/// When the card stops being usable. A cashier is the last person who can tell
+/// the customer this in time to matter.
+/// </param>
+public sealed record PaymentBalanceInquiryResult(
+    string GiftCardPublicReference,
+    decimal AvailableAmount,
+    string Currency,
+    DateTimeOffset ExpiresAtUtc);
+
+/// <summary>
+/// Reading a presented card's value without reserving any of it.
+///
+/// Deliberately separate from <see cref="IPaymentProvisionService"/>: an inquiry
+/// takes nothing, holds nothing, and posts nothing. It is only reachable with a
+/// live credential the cardholder has just produced, so it cannot be used to
+/// sweep balances, and it does not consume that credential, so asking does not
+/// cost the customer the code they are about to pay with.
+/// </summary>
+public interface IPaymentBalanceInquiryService
+{
+    Task<PaymentBalanceInquiryResult> InquireAsync(
+        PaymentBalanceInquiryRequest request,
+        CancellationToken cancellationToken);
+}
+
 public sealed record CreatePaymentRefundRequest(
     decimal Amount,
     string? IdempotencyKey,

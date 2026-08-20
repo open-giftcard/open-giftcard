@@ -45,6 +45,24 @@ public sealed class SessionContextWriter : ISessionContextWriter
     public const string PosClientIdSetting = "app.pos_client_id";
 
     /// <summary>
+    /// The organization a POS device's presented credential authorises it to act
+    /// for, so an audit record can be attributed to the tenant whose money moved.
+    ///
+    /// Deliberately not written with the settings above. Those are known when the
+    /// transaction opens; this one is only knowable after the credential has been
+    /// resolved to a card, which happens inside that transaction. It is therefore
+    /// set with a transaction-local <c>set_config</c> at the point it becomes
+    /// known, in the same way as the partner credential-lookup escape.
+    ///
+    /// A POS token carries no organization or tenant of its own by design, so
+    /// without this the only proof a device could offer was that it had already
+    /// written a provision row, which makes any operation that reserves nothing
+    /// impossible to audit against a tenant.
+    /// </summary>
+    public const string PosCredentialOrganizationIdSetting =
+        "app.pos_credential_organization_id";
+
+    /// <summary>
     /// Acting partner API client (ADR-053). The read-only credential-lookup
     /// escape, app.is_partner_credential_lookup, is deliberately not written
     /// here: it is set with a transaction-local set_config on the guarded

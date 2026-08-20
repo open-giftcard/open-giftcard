@@ -7,6 +7,8 @@ internal static class PaymentEndpoints
 {
     public const string RateLimitPolicy = "payment-redemption";
 
+    public const string BalanceInquiryRateLimitPolicy = "pos-balance-inquiry";
+
     public static IEndpointRouteBuilder MapPaymentEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost(
@@ -43,6 +45,27 @@ internal static class PaymentEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        app.MapPost($"{ApiRoutes.V1}/pos/balance-inquiries", InquireBalanceAsync)
+            .WithTags("Payments")
+            .WithName("InquirePaymentBalance")
+            .WithSummary("Reads what a presented card can spend, reserving nothing.")
+            .WithDescription(
+                "Answers the question a cashier is asked before splitting a tender. " +
+                "Requires a live presented credential, so it cannot be used to sweep " +
+                "balances, and deliberately does not consume it, so asking does not " +
+                "cost the customer the code they are about to pay with. Returns the " +
+                "amount spendable now, which excludes value held by a share or " +
+                "another till. Unknown, expired, and consumed credentials are refused " +
+                "identically. It is a POST because the credential travels in the body: " +
+                "a query string would put a payment credential into logs and history.")
+            .RequireAuthorization()
+            .RequireRateLimiting(BalanceInquiryRateLimitPolicy)
+            .Produces<PaymentBalanceInquiryResult>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         app.MapPost($"{ApiRoutes.V1}/pos/payment-provisions", CreateProvisionAsync)
             .WithTags("Payments")
@@ -124,6 +147,16 @@ internal static class PaymentEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
+    }
+
+    private static async Task<IResult> InquireBalanceAsync(
+        [FromBody] PaymentBalanceInquiryRequest request,
+        IPaymentBalanceInquiryService service,
+        HttpResponse response,
+        CancellationToken cancellationToken)
+    {
+        response.Headers.CacheControl = "no-store";
+        return Results.Ok(await service.InquireAsync(request, cancellationToken));
     }
 
     private static async Task<IResult> CreateProvisionAsync(

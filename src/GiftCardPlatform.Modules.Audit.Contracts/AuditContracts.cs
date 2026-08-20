@@ -55,6 +55,14 @@ public static class AuditOperations
     public const string PaymentProvisionCreated = "payment.provision.created";
     public const string PaymentProvisionCancelled = "payment.provision.cancelled";
     public const string PaymentProvisionConfirmed = "payment.provision.confirmed";
+
+    /// <summary>
+    /// A till read a presented card's available value. Nothing is reserved or
+    /// posted, but it is recorded: a device asking repeatedly what cards are
+    /// worth is the shape a balance-harvesting attempt would take, and that is
+    /// only visible if the reads are written down.
+    /// </summary>
+    public const string PaymentBalanceInquired = "payment.balance.inquired";
     public const string PaymentRefundCreated = "payment.refund.created";
 
     /// <summary>

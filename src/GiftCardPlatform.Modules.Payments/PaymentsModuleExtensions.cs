@@ -127,6 +127,8 @@ public static class PaymentsModuleExtensions
             provider.GetRequiredService<PaymentProvisionService>());
         services.AddScoped<IPaymentProvisionExpirationProcessor>(provider =>
             provider.GetRequiredService<PaymentProvisionService>());
+        services.AddScoped<IPaymentBalanceInquiryService>(provider =>
+            provider.GetRequiredService<PaymentProvisionService>());
         services.AddScoped<IPaymentReservationQuery, PaymentReservationQuery>();
         services.AddScoped<IPosRegistrationService, PosRegistrationService>();
         services.AddScoped<IPosAuthenticationService, PosAuthenticationService>();

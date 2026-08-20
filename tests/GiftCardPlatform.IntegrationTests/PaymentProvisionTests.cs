@@ -1522,4 +1522,110 @@ public sealed class PaymentProvisionTests(PlatformApiFixture fixture)
         decimal RequestedAmount,
         decimal OutstandingAmount,
         string State);
+
+    [Fact]
+    public async Task A_till_can_read_what_a_presented_card_is_worth()
+    {
+        var world = await ArrangeAsync(cardAmount: 75m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = token });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("no-store", response.Headers.CacheControl?.ToString(), StringComparison.Ordinal);
+        var balance = await response.Content.ReadFromJsonAsync<BalanceInquiryResponse>(JsonOptions);
+        Assert.NotNull(balance);
+        Assert.Equal(75m, balance.AvailableAmount);
+        Assert.Equal("TRY", balance.Currency);
+    }
+
+    [Fact]
+    public async Task An_inquiry_does_not_spend_the_credential_it_read()
+    {
+        // Asking what a card is worth must not cost the customer the code they
+        // are about to pay with.
+        var world = await ArrangeAsync(cardAmount: 75m);
+        var token = await IssueTokenAsync(world);
+
+        var inquiry = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = token });
+        inquiry.EnsureSuccessStatusCode();
+
+        var provision = await PostProvisionAsync(world, token, amount: 75m);
+        Assert.Equal(HttpStatusCode.Created, provision.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_inquiry_reports_only_what_is_spendable_here()
+    {
+        // Value promised to another till is not spendable at this one, so
+        // reporting the posted balance would overstate what the cashier can take.
+        var world = await ArrangeAsync(cardAmount: 100m);
+        await CreateProvisionAsync(world, amount: 40m);
+        var token = await IssueTokenAsync(world);
+
+        var response = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = token });
+
+        response.EnsureSuccessStatusCode();
+        var balance = await response.Content.ReadFromJsonAsync<BalanceInquiryResponse>(JsonOptions);
+        Assert.NotNull(balance);
+        Assert.Equal(60m, balance.AvailableAmount);
+    }
+
+    [Theory]
+    [InlineData("not-a-credential")]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task An_inquiry_refuses_a_bad_credential_exactly_as_a_payment_does(string? token)
+    {
+        // The refusal must not become an oracle for which cards exist.
+        var world = await ArrangeAsync(cardAmount: 75m);
+
+        var inquiry = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = token });
+        var provision = await PostProvisionAsync(world, token, amount: 10m);
+
+        Assert.Equal(provision.StatusCode, inquiry.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_consumed_credential_cannot_be_used_to_read_a_balance()
+    {
+        var world = await ArrangeAsync(cardAmount: 100m);
+        var token = await IssueTokenAsync(world);
+        var provision = await PostProvisionAsync(world, token, amount: 10m);
+        provision.EnsureSuccessStatusCode();
+
+        var inquiry = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = token });
+
+        Assert.NotEqual(HttpStatusCode.OK, inquiry.StatusCode);
+    }
+
+    [Fact]
+    public async Task One_till_cannot_read_a_balance_without_presenting_the_card()
+    {
+        // A device token alone is never enough. Without a credential there is
+        // nothing to identify a card, and nothing to authorise reading it.
+        var world = await ArrangeAsync(cardAmount: 75m);
+
+        var response = await world.Pos.PostAsJsonAsync(
+            "/api/v1/pos/balance-inquiries",
+            new { paymentToken = (string?)null, paymentCode = (string?)null });
+
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private sealed record BalanceInquiryResponse(
+        string GiftCardPublicReference,
+        decimal AvailableAmount,
+        string Currency,
+        DateTimeOffset ExpiresAtUtc);
 }

@@ -102,6 +102,22 @@ public interface IGiftCardPaymentLedger
         Guid giftCardId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Reads the posted balance without taking the card's value lock.
+    ///
+    /// For answering "what is this worth", never for deciding what to reserve or
+    /// post. <see cref="GetLockedBalanceAsync"/> exists because a share and a
+    /// payment must serialise on one card; a balance inquiry has no such need,
+    /// and taking that lock on a read a till can repeat would let an inquiry
+    /// contend with every payment on the card.
+    ///
+    /// The number is therefore a snapshot that can be stale the moment it is
+    /// returned, which is correct for a display value and wrong for a decision.
+    /// </summary>
+    Task<GiftCardLockedBalanceResult> GetBalanceAsync(
+        Guid giftCardId,
+        CancellationToken cancellationToken);
+
     Task<GiftCardRedemptionResult> RecordRedemptionAsync(
         RecordGiftCardRedemptionRequest request,
         CancellationToken cancellationToken);

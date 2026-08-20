@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Globalization;
 using GiftCardPlatform.BuildingBlocks.Errors;
 using GiftCardPlatform.BuildingBlocks.Execution;
@@ -27,7 +27,8 @@ internal sealed class PaymentProvisionService(
     TimeProvider timeProvider,
     IOptions<PaymentProvisionOptions> options) :
     IPaymentProvisionService,
-    IPaymentProvisionExpirationProcessor
+    IPaymentProvisionExpirationProcessor,
+    IPaymentBalanceInquiryService
 {
     private readonly PaymentProvisionOptions settings = options.Value;
 
@@ -592,6 +593,185 @@ internal sealed class PaymentProvisionService(
             ?? throw new ForbiddenException(
                 "pos.terminal.unavailable",
                 "The POS terminal is not available.");
+
+
+    public async Task<PaymentBalanceInquiryResult> InquireAsync(
+        PaymentBalanceInquiryRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        EnsurePosDevice();
+
+        // Resolved exactly as a provision resolves it, so an unknown, malformed,
+        // expired or already-consumed credential is refused identically here
+        // too. An inquiry that failed differently from a payment would be an
+        // oracle for which cards exist (ADR-017).
+        var tokenId = await ResolvePresentedTokenIdAsync(
+            request.PaymentToken,
+            request.PaymentCode,
+            cancellationToken).ConfigureAwait(false);
+
+        executionContext.SetPaymentTokenCandidate(tokenId);
+
+        // Serializable because the card's spendability read requires it, and
+        // PostgreSQL cannot raise isolation once a transaction has begun. What
+        // this path still avoids is the card's advisory value lock, which is the
+        // contention that actually matters: that lock is what serialises shares
+        // against payments, and taking it on a read a till can repeat would put
+        // an inquiry in the way of every payment on the card. This transaction
+        // reserves nothing and writes nothing.
+        await using var transaction = await transactionCoordinator
+            .BeginAsync(IsolationLevel.Serializable, cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+
+        var token = await dbContext.Tokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == tokenId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var now = timeProvider.GetUtcNow();
+        var hasQrToken = !string.IsNullOrWhiteSpace(request.PaymentToken);
+        var credentialMatches = hasQrToken
+            ? PaymentTokenCodec.Matches(
+                token?.SecretHash ?? new string('0', PaymentTokenCodec.HashHexLength),
+                ParseQrSecretOrEmpty(request.PaymentToken))
+            : NumericPaymentCodeCodec.Matches(
+                token?.NumericCodeHash ?? new string('0', NumericPaymentCodeCodec.HashHexLength),
+                NormalizeNumericOrEmpty(request.PaymentCode));
+        if (token is null || !credentialMatches || !token.IsPresentable(now))
+        {
+            throw CredentialRefused();
+        }
+
+        var card = await giftCards
+            .GetCredentialSpendableAsync(token.GiftCardId, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Publish the tenant this device's credential authorises it to act for,
+        // so the audit record can be attributed to the organization whose money
+        // is being asked about. Only knowable now: a POS token carries no
+        // organization, and the card is what supplies one. Transaction-local, so
+        // it cannot outlive this request.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"select set_config({SessionContextWriter.PosCredentialOrganizationIdSetting}, {card.FundingOrganizationId.ToString()}, true)",
+            cancellationToken).ConfigureAwait(false);
+
+        // The non-locking read. An inquiry must never contend with the payments
+        // and shares it is about to sit alongside.
+        var balance = await ledger
+            .GetBalanceAsync(token.GiftCardId, cancellationToken)
+            .ConfigureAwait(false);
+        var shared = await shareReservations
+            .GetActiveReservedAmountAsync(token.GiftCardId, cancellationToken)
+            .ConfigureAwait(false);
+        var provisioned = await SumActiveProvisionsAsync(
+            token.GiftCardId,
+            now,
+            cancellationToken).ConfigureAwait(false);
+
+        // Value already promised to a share or another till is not spendable
+        // here, so telling a cashier the posted balance would overstate it.
+        var available = balance.Amount - shared - provisioned;
+        if (available < 0)
+        {
+            available = 0m;
+        }
+
+        // Audited inside the transaction, because the recorder requires an audit
+        // record to commit atomically with what it describes.
+        await auditRecorder.RecordAsync(
+            new AuditEntry(
+                executionContext.PosClientId!.Value,
+                AuditActorType.PosClient,
+                card.FundingOrganizationId,
+                AuditOperations.PaymentBalanceInquired,
+                nameof(PaymentProvision),
+                token.GiftCardId.ToString(),
+                AuditOutcome.Success,
+                executionContext.CorrelationId,
+                new Dictionary<string, string>
+                {
+                    ["giftCardId"] = token.GiftCardId.ToString(),
+                    ["posTerminalId"] = executionContext.PosTerminalId!.Value.ToString(),
+                    ["availableAmount"] = available.ToString(
+                        "0.####",
+                        CultureInfo.InvariantCulture),
+                    ["currency"] = balance.Currency,
+                }),
+            cancellationToken).ConfigureAwait(false);
+
+        // The credential is deliberately not consumed. Asking what a card is
+        // worth must not cost the customer the code they are about to pay with.
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PaymentBalanceInquiryResult(
+            card.PublicReference,
+            available,
+            balance.Currency,
+            card.ExpiresAtUtc);
+    }
+
+    private static byte[] ParseQrSecretOrEmpty(string? paymentToken) =>
+        PaymentTokenCodec.TryParse(paymentToken, out _, out var secret) ? secret : [];
+
+    private static string NormalizeNumericOrEmpty(string? paymentCode) =>
+        NumericPaymentCodeCodec.TryNormalize(paymentCode, out var normalized)
+            ? normalized
+            : string.Empty;
+
+    /// <summary>
+    /// One presented credential, in either form, reduced to the token id it
+    /// names. Refuses malformed input exactly as an unknown credential is
+    /// refused.
+    /// </summary>
+    private async Task<Guid> ResolvePresentedTokenIdAsync(
+        string? paymentToken,
+        string? paymentCode,
+        CancellationToken cancellationToken)
+    {
+        var hasQrToken = !string.IsNullOrWhiteSpace(paymentToken);
+        var hasNumericCode = !string.IsNullOrWhiteSpace(paymentCode);
+        if (hasQrToken == hasNumericCode)
+        {
+            throw CredentialRefused();
+        }
+
+        if (hasQrToken)
+        {
+            if (!PaymentTokenCodec.TryParse(paymentToken, out var tokenId, out _))
+            {
+                throw CredentialRefused();
+            }
+
+            return tokenId;
+        }
+
+        if (!NumericPaymentCodeCodec.TryNormalize(paymentCode, out var numericCode))
+        {
+            throw CredentialRefused();
+        }
+
+        var codeHash = NumericPaymentCodeCodec.Hash(numericCode);
+        executionContext.SetPaymentCodeCandidate(codeHash);
+        await using var lookup = await transactionCoordinator
+            .BeginAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await lookup.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+        var resolved = await dbContext.Tokens
+            .AsNoTracking()
+            .Where(token => token.NumericCodeHash == codeHash)
+            .Select(token => token.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await lookup.CommitAsync(cancellationToken).ConfigureAwait(false);
+        if (resolved == Guid.Empty)
+        {
+            throw CredentialRefused();
+        }
+
+        return resolved;
+    }
 
     private Task RecordAuditAsync(
         PaymentProvision provision,
