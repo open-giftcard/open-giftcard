@@ -38,15 +38,26 @@ The milestone branches started from these public-history commits:
 | Cardholder | `open-giftcard/open-giftcard-cardholder` | `4fac8a5203f2d5eb9577fd666339ffe02574ca1c` | `e7bff3e0d39e1c24b89a6d39612ad5939d87f6e5` |
 | POS | `open-giftcard/open-giftcard-pos` | `ad902f01185dc5d7375637fa34598751a816c1b7` | `fbf3f7bd27479db66b7e3ae022576fc9db46278a` |
 
-The client pins are deliberately recorded as a gap. A coordinated candidate
-must name one accepted backend commit, capture its exact OpenAPI document, and
-make all three client repositories verify that same commit and SHA-256.
+The implementation was frozen locally at these commits before updating the
+non-self-referential release metadata:
+
+| Component | Frozen implementation commit |
+| --- | --- |
+| Backend | `56c73c689e41aea6073a73db2e575f8f479bc6c2` |
+| Portal | `837dd91286951ef71ffe7a5992860272e1151e3c` |
+| Cardholder | `6afd8b87ea261a1cf389845dc4488d4e10eaeac2` |
+| POS | `4531ec0c602599cb6d4ff3643f9dbf01a2278360` |
+
+The accepted backend commit serves OpenAPI SHA-256
+`A5137EFD65B6CB9927419C26CA8BE0A1873C34FE47F4CC22B3C66BCA3549B6C1`.
+All three client snapshots and all four compatibility manifests must carry that
+same pin in their final metadata commits.
 
 ## Release gate
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four repositories carry one compatibility contract and every client accepts backend commit `f80bab8`; final commit evidence is created only after the release set is frozen | Maintainer |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: implementation commits are frozen and all four manifests plus all three snapshots accept backend commit `56c73c6` and OpenAPI SHA-256 `A5137EFD...`; final metadata commits and CI evidence remain | Maintainer |
 | Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Source verified locally, including 243 unit, 15 architecture, and 385 integration tests | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified on current branches; must be rerun at final commits | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; staging evidence missing | Maintainer |
