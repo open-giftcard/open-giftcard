@@ -31,6 +31,10 @@ jobs:
         shell: pwsh
         run: ./scripts/Test-ReleaseContract.ps1
 
+      - name: Staging acceptance evidence contract
+        shell: pwsh
+        run: ./scripts/Test-StagingAcceptanceRecord.ps1
+
       # Resolved from global.json so CI uses the same SDK family as local
       # development, rather than whatever happens to be latest on the runner.
       - name: Set up .NET

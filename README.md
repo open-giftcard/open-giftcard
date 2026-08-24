@@ -448,6 +448,26 @@ paired with its own SHA-256 file. Existing evidence is never overwritten.
 `-AllowInsecureHttp` exists only for a non-certifying network rehearsal and
 records that the run does not count as deployment-verified smoke evidence.
 
+After the automated staging smoke passes, copy
+`STAGING_ACCEPTANCE.example.json` into the private evidence workspace. Replace
+every `not-run` result with the human or operator result, owner, and a
+non-secret evidence reference. Set the real review time and decision, then bind
+that review to the smoke record:
+
+```powershell
+.\scripts\New-StagingAcceptanceRecord.ps1 `
+  -AutomatedSmokeEvidencePath '.local\certification-evidence\staging-rc1-smoke.json' `
+  -ReviewPath '<private-evidence-workspace>\staging-rc1-review.json' `
+  -OutputPath '<new-evidence-directory>\staging-rc1-acceptance.json'
+```
+
+The recorder verifies the smoke checksum, named HTTPS environment, exact
+release identity, review timing, and all 17 required product, accessibility,
+recovery, and operations checks. Approval is refused when a check is failed or
+not run, a blocking issue remains, or the review asks to approve a different
+environment. The checksum-protected result records evidence references and
+owners, not credentials or secret values.
+
 Use the port printed by `dotnet run`. `/demo` is the responsive development console:
 it guides bootstrap/login, customer onboarding, initial Company Administrator
 assignment, hierarchy, memberships, roles, corporate-credit allocation,

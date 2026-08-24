@@ -57,8 +57,8 @@ same pin in their final metadata commits.
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: implementation commits are frozen and all four manifests plus all three snapshots accept backend commit `56c73c6` and OpenAPI SHA-256 `A5137EFD...`; the three final client metadata commits are pinned in clean artifacts; coordinated CI evidence remains | Maintainer |
-| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Source verified locally, including 243 unit, 15 architecture, and 385 integration tests | Maintainer and CI |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source and hosted release-set verification passed: all four manifests plus all three snapshots accept backend commit `56c73c6` and OpenAPI SHA-256 `A5137EFD...`; coordinated run `32726035561` built the four clean bundles from the branch commits | Maintainer |
+| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 385 integration tests; hosted CI run `32726035614` passed the build, all three suites, and the compose health gate | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified at the current metadata commits: portal 104, cardholder 177, and POS 97 tests passed locally; hosted client CI evidence remains | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; the gate now accepts named HTTPS deployment endpoints, requires exact clean artifacts and pre-provisioned POS credentials, and emits checksum-protected redacted evidence; a real staging record remains | Maintainer |
 | Database change control | Separate migration and runtime roles; forward migration; startup against upgraded schema; rollback policy | Local source verified: explicit migrators own DDL; populated upgrade exposed and fixed an RLS-hidden payment backfill plus Windows Event Log masking; current and f80bab8 artifacts both reached readiness on the upgraded isolated restore; staging evidence remains | Maintainer and operator |
@@ -69,9 +69,9 @@ same pin in their final metadata commits.
 | Secrets | No committed secrets; fail-closed configuration; rotation and revocation procedures | Application checks are partial; POS device custody and installation procedure are blocked | Maintainer and operator |
 | Health and observability | Liveness, readiness, structured logs, metrics, alerts, correlation, runbooks | Health and logs exist; metrics, alert rules, and incident evidence are blocked | Maintainer and operator |
 | Backup and recovery | Database plus key-ring backup; timed restoration; restored credential/session verification | Local source verified: backend restore passed in 18.7s with all four key rings; separate portal and cardholder database/key restores passed in 3.0s and 3.1s; ownership, RLS flags, rows, sequences, and SHA-256 manifests matched; staging session evidence remains | Operator |
-| Deployment artifacts | Reproducible, versioned, immutable artifacts for all four applications; provenance and SBOM | Local clean packaging and executable probes are verified; the builder emits validated embedded and sidecar SPDX 2.2 SBOMs using a hash-pinned generator, and intentional coordinated CI runs create GitHub provenance plus SBOM attestations; the public native deployment guide is now an artifact input; a final clean attested CI run remains | Maintainer and CI |
+| Deployment artifacts | Reproducible, versioned, immutable artifacts for all four applications; provenance and SBOM | Local clean packaging and executable probes are verified; coordinated run `32726035561` produced the four clean hosted bundles with embedded and sidecar SPDX 2.2 SBOMs from the hash-pinned generator; an intentional dispatch with attestations remains | Maintainer and CI |
 | Staging security | HTTPS, forwarded-header trust, secure cookies, CSP, no-store, least-privilege DB roles, dependency and code scanning | Source checks refuse insecure non-local smoke endpoints and verify a least-privilege runtime role plus forced RLS; no named staging environment has supplied TLS, proxy, cookie, header, or scanning evidence | Maintainer, security, and operator |
-| Human acceptance | Portal, cardholder, and POS primary journeys; keyboard, mobile, zoom, reduced motion, screen reader, and visual review | Blocked: automated accessibility exists in browser clients; complete human pass is not recorded | Maintainer and reviewer |
+| Human acceptance | Portal, cardholder, and POS primary journeys; keyboard, mobile, zoom, reduced motion, screen reader, and visual review | The fixed 17-check acceptance schema and checksum-protected recorder are implemented; a named human and operator pass is not recorded | Maintainer and reviewer |
 | Release publication | Clean public histories, signed or protected tags, release notes, compatibility manifest, upgrade and rollback notes | Blocked: canonical repositories have no public tags; rollback needs documented quota and phone-route compensating controls | Maintainer |
 
 ## Required structural slices
@@ -99,8 +99,8 @@ Complete these in order unless a later finding changes the dependency:
 6. **Staging and recovery certification.** Deploy the exact candidate, run the
    artifact-bound automated smoke gate plus manual acceptance, restart replicas,
    restore the database and key rings, and exercise rollback. The redacted
-   machine-readable smoke record is implemented; the named deployment run is
-   still required.
+   machine-readable smoke record and acceptance recorder are implemented; the
+   named deployment and named review are still required.
 7. **Public candidate.** Record final commits and evidence, update supported
    versions, create the four matching tags, and publish release notes.
 

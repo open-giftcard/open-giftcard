@@ -317,6 +317,28 @@ or database connection string. This record covers the automated staging smoke
 row only; manual accessibility, infrastructure controls, SMTP, recovery, and
 operator sign-off remain separate evidence.
 
+Copy `STAGING_ACCEPTANCE.example.json` to the private evidence workspace after
+the automated smoke completes. Record the named owner and non-secret evidence
+reference for every product, accessibility, infrastructure, notification,
+recovery, rollback, observability, and ingress check. Do not put screenshots,
+tokens, connection strings, passwords, or secret-bearing URLs in the review
+file. Bind the completed review to the automated result:
+
+```powershell
+.\scripts\New-StagingAcceptanceRecord.ps1 `
+  -AutomatedSmokeEvidencePath '<new-evidence-directory>\automated-smoke.json' `
+  -ReviewPath '<private-evidence-workspace>\staging-review.json' `
+  -OutputPath '<new-evidence-directory>\staging-acceptance.json'
+```
+
+The command verifies the smoke SHA-256 sidecar and accepts only a passing named
+HTTPS deployment record. It requires every fixed check exactly once, refuses a
+future-dated or pre-smoke review, and writes a checksum-protected decision that
+is bound to the exact artifact set and both input files. A rejected or
+incomplete review is still recorded and then returns a failing exit code. The
+script does not establish that an external reference is truthful; the named
+reviewer and operator remain accountable for that evidence.
+
 ## Phase 3 operational checks
 
 * Keep the bounded Sharing expiration worker enabled in every active API

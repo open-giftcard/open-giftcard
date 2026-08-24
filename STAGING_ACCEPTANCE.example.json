@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "environmentName": "staging-rc1",
+  "reviewer": "release-reviewer@example.org",
+  "reviewedAtUtc": "2026-08-24T12:30:00Z",
+  "decision": "reject",
+  "secretValuesIncluded": false,
+  "checks": [
+    { "id": "portal-primary-journey", "result": "not-run", "owner": "product-review", "evidenceReference": "acceptance/portal" },
+    { "id": "cardholder-primary-journey", "result": "not-run", "owner": "product-review", "evidenceReference": "acceptance/cardholder" },
+    { "id": "pos-primary-journey", "result": "not-run", "owner": "product-review", "evidenceReference": "acceptance/pos" },
+    { "id": "keyboard-navigation", "result": "not-run", "owner": "accessibility-review", "evidenceReference": "acceptance/keyboard" },
+    { "id": "mobile-layout", "result": "not-run", "owner": "accessibility-review", "evidenceReference": "acceptance/mobile" },
+    { "id": "zoom-200-percent", "result": "not-run", "owner": "accessibility-review", "evidenceReference": "acceptance/zoom" },
+    { "id": "reduced-motion", "result": "not-run", "owner": "accessibility-review", "evidenceReference": "acceptance/reduced-motion" },
+    { "id": "screen-reader", "result": "not-run", "owner": "accessibility-review", "evidenceReference": "acceptance/screen-reader" },
+    { "id": "visual-review", "result": "not-run", "owner": "product-review", "evidenceReference": "acceptance/visual" },
+    { "id": "tls-dns-ingress", "result": "not-run", "owner": "platform-operations", "evidenceReference": "operations/ingress" },
+    { "id": "replica-restart-handoff", "result": "not-run", "owner": "platform-operations", "evidenceReference": "operations/replica-handoff" },
+    { "id": "smtp-email-delivery", "result": "not-run", "owner": "notification-operations", "evidenceReference": "operations/smtp" },
+    { "id": "central-logs-correlation", "result": "not-run", "owner": "platform-operations", "evidenceReference": "operations/log-correlation" },
+    { "id": "backup-restore", "result": "not-run", "owner": "database-operations", "evidenceReference": "operations/restore" },
+    { "id": "application-rollback", "result": "not-run", "owner": "release-operations", "evidenceReference": "operations/rollback" },
+    { "id": "metrics-alerts", "result": "not-run", "owner": "platform-operations", "evidenceReference": "operations/alerts" },
+    { "id": "ingress-rate-limits", "result": "not-run", "owner": "security-operations", "evidenceReference": "operations/rate-limits" }
+  ],
+  "knownLimitations": [
+    "Phone delivery remains disabled until an SMS adapter is integrated and certified.",
+    "Audit checkpointing remains disabled until operator-managed KMS/HSM and WORM adapters are supplied."
+  ],
+  "blockingIssues": [
+    "Replace every not-run result with deployed-environment evidence before approval."
+  ]
+}

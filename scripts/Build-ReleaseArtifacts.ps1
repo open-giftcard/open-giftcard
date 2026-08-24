@@ -179,6 +179,8 @@ function Test-ReleaseArchive(
             foreach ($operatorFile in @(
                 'DEPLOYMENT.md',
                 'scripts/OpenGiftCardLocal.Common.ps1',
+                'scripts/New-StagingAcceptanceRecord.ps1',
+                'STAGING_ACCEPTANCE.example.json',
                 'scripts/Test-BackendRollback.ps1',
                 'scripts/Test-OpenGiftCardSmoke.ps1',
                 'scripts/Test-PostgresRecovery.ps1')) {
@@ -347,12 +349,15 @@ try {
                 Out-Null
             foreach ($operatorScript in @(
                 'OpenGiftCardLocal.Common.ps1',
+                'New-StagingAcceptanceRecord.ps1',
                 'Test-BackendRollback.ps1',
                 'Test-OpenGiftCardSmoke.ps1',
                 'Test-PostgresRecovery.ps1')) {
                 Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\$operatorScript") `
                     -Destination $operatorScriptPath
             }
+            Copy-Item -LiteralPath (Join-Path $repoRoot 'STAGING_ACCEPTANCE.example.json') `
+                -Destination $bundlePath
         }
 
         $componentInfo = [ordered]@{
