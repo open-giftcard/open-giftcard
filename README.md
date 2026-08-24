@@ -82,9 +82,6 @@ This is not deployable, and the gaps are deliberate rather than unknown:
   Production requires a KMS/HSM signer and immutable WORM storage; the seams
   exist and the adapters do not. Non-Development configuration refuses to enable
   checkpointing rather than silently using local keys.
-- **Data Protection key persistence.** The outbox protects queued credentials
-  with keys that are currently ephemeral, so restarting the API dead-letters
-  anything still queued.
 - **SMS.** No provider adapter. A phone-channel message dead-letters with
   `notification.channel.unconfigured` rather than retrying forever.
 - **Deployment and operations.** No container images, migration job, TLS, DNS,
@@ -547,9 +544,10 @@ GitHub/
   open-giftcard              backend, this repository
   open-giftcard-portal       staff and platform operator portal
   open-giftcard-cardholder   recipient application
+  open-giftcard-pos          reference counter till
 ```
 
-Leave all three on `main`. There are no tags to check out. They must be
+Leave all four on compatible revisions. They must be
 consistent: the clients are pinned to a specific backend contract and will
 refuse a mismatched revision, and CI fails a client whose recorded contract hash
 does not match the document beside it.
@@ -561,7 +559,9 @@ does not match the document beside it.
 | Backend API | 5143 | `dotnet run --project src/GiftCardPlatform.Api` |
 | Backend demo console | 5143 `/demo` | served by the API in Development |
 | Cardholder app | 5180 | `dotnet run --project src/GiftCardCardholder.Web` |
-| Portal BFF and web | 5179 / 5183 | see the portal repository's README |
+| Portal development web | 5173 | `pnpm run dev` in `GiftCardPortal.Web` |
+| Portal BFF and bundled web | 5179 | `dotnet run --project src/GiftCardPortal.Bff` |
+| POS till | 5190 | `dotnet run --project src/GiftCardPos.Web` |
 
 Ports come from each repository's launch profile. The backend prints its port on
 startup; if it differs, adjust the client `ClaimBaseUrl` settings to match.
@@ -573,9 +573,11 @@ Do these once, or the journey stalls half way and it is not obvious why:
 1. **Enable SMTP** (step 4 above). Without it, activation links are queued but
    never sent, and you have to read them out of the demo console instead of an
    inbox. That still works, but it is far less convincing to watch.
-2. **Do not restart the API mid-demonstration.** Data Protection keys are
-   ephemeral, so a restart makes anything still queued undecryptable and it
-   dead-letters. Deliver first, restart later.
+2. **Keep the Data Protection key ring.** Development stores it under
+   `.local/dataprotection-keys`, which is ignored by Git. Deleting that directory
+   makes previously queued notification payloads unreadable. Non-Development
+   startup requires an explicit durable `DataProtection:KeysPath` shared by all
+   API instances.
 3. **Have two browser profiles or a private window ready.** The staff session and
    the recipient session are different identities; sharing one browser means
    logging in and out repeatedly in front of an audience.
@@ -622,8 +624,9 @@ recipient claims, using the 256-bit link plus the six-digit PIN.
 same 60-second single-use record is shown as both a QR code and a 12-digit
 numeric code.
 
-There is no POS application yet, so drive the till side through Swagger or
-`curl`:
+Open the reference till at `http://localhost:5190`, configure its client and
+terminal credentials, and submit the displayed QR or numeric code. Integrators
+can also drive the same contract through Swagger or `curl`:
 
 ```text
 POST /api/v1/pos/clients                        register a POS client   (platform)

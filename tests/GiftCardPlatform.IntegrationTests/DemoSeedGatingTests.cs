@@ -28,7 +28,7 @@ public sealed class DemoSeedGatingTests
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
     private static WebApplicationFactory<Program> FactoryFor(string environment, bool seedEnabled) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(webHost =>
+        new IsolatedApiFactory(webHost =>
         {
             webHost.UseEnvironment(environment);
             webHost.UseSetting("ConnectionStrings:Default", DummyConnection);

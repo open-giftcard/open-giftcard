@@ -69,10 +69,6 @@ literal allowlisted addresses, and is ignored entirely when none are configured.
 These are real and deliberate. The project has never been deployed, and nothing
 here should be read as a production-readiness claim.
 
-- **Data Protection keys are not persisted outside Development.** The API and
-  the POS till configure a key path only in Development. In any other
-  environment a restart or a second replica loses the keys, which dead-letters
-  queued notification payloads and invalidates antiforgery tokens.
 - **Audit checkpoint signing has no managed key custody.** The signing and
   witness mechanism exists; the KMS/HSM signer and WORM storage adapters do not.
   Checkpointing therefore refuses to start outside Development rather than
@@ -83,8 +79,9 @@ here should be read as a production-readiness claim.
   float and the per-order ceiling remain the authoritative financial bounds.
 - **No SMS provider.** A phone-channel notification dead-letters rather than
   being delivered.
-- **The POS till is a reference client, not retail software.** It ships no
-  security-headers middleware and pins no API contract. Its README says so.
+- **The POS till is a reference client, not retail software.** It now carries
+  response security headers, a pinned API contract, readiness, and durable key
+  configuration, but has not completed a live-backend or browser certification.
 - **No staging certification, no threat model document, no penetration test.**
 
 ## Scope

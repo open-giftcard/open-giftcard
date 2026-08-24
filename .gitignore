@@ -21,6 +21,7 @@ coverage/
 appsettings.Local.json
 appsettings.*.Local.json
 secrets.json
+.local/
 
 ## Private certificates and keys
 *.pfx

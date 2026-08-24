@@ -33,7 +33,7 @@ public sealed class DemoAvailabilityTests
     private static WebApplicationFactory<Program> FactoryFor(
         string environment,
         bool replaceApiServices = false) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(webHost =>
+        new IsolatedApiFactory(webHost =>
         {
             webHost.UseEnvironment(environment);
             webHost.UseSetting("ConnectionStrings:Default", DummyConnection);

@@ -95,21 +95,13 @@ builder.Services.AddSingleton<SchemaReadiness>();
 builder.Services.AddHostedService<ShareExpirationWorker>();
 builder.Services.AddHostedService<PaymentProvisionExpirationWorker>();
 
-// Outbox payload protection. Data Protection keys must be persisted and shared
-// across instances, or queued activation links become undecryptable after a
-// restart and dead-letter. Development uses an isolated writable key ring so
-// stale keys from another Windows identity cannot break gift-card delivery.
-var dataProtection = builder.Services.AddDataProtection()
-    .SetApplicationName("GiftCardPlatform");
-if (builder.Environment.IsDevelopment())
-{
-    var keyDirectory = Path.Combine(
-        Path.GetTempPath(),
-        "giftcard-platform",
-        "dataprotection-keys");
-    Directory.CreateDirectory(keyDirectory);
-    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
-}
+// Outbox payload protection. Development gets a repository-local key ring;
+// every other environment must name durable storage shared by all instances.
+// Startup fails before serving traffic when that deployment contract is absent.
+DataProtectionConfiguration.Configure(
+    builder.Services,
+    builder.Configuration,
+    builder.Environment);
 builder.Services.AddSingleton<INotificationPayloadProtector>(serviceProvider =>
     new DataProtectionNotificationProtector(
         serviceProvider.GetRequiredService<IDataProtectionProvider>()));

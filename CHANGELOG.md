@@ -25,6 +25,10 @@ usable and are not listed.
 
 ### Changed
 
+- The API now persists its Data Protection key ring in Development and requires
+  an explicit durable shared `DataProtection:KeysPath` in every other
+  environment, so queued notification credentials survive restarts and replica
+  handoffs.
 - The architecture test suite now derives its module list from the assemblies
   in the build output instead of a hand-maintained copy, so a module cannot be
   silently exempt from the boundary and domain-purity rules.

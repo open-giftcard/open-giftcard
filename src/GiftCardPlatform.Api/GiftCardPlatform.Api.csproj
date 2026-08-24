@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="GiftCardPlatform.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\GiftCardPlatform.BuildingBlocks\GiftCardPlatform.BuildingBlocks.csproj" />
     <ProjectReference Include="..\GiftCardPlatform.Modules.Notifications\GiftCardPlatform.Modules.Notifications.csproj" />
     <ProjectReference Include="..\GiftCardPlatform.Modules.Notifications.Contracts\GiftCardPlatform.Modules.Notifications.Contracts.csproj" />
