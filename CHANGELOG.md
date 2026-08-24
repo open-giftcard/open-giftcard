@@ -12,6 +12,8 @@ usable and are not listed.
 
 ### Added
 
+- Non-Docker local stack start, stop, readiness, and live transaction smoke
+  scripts for the backend, portal, cardholder, and POS repositories.
 - One-command setup. `cp .env.example .env && docker compose up` brings up
   PostgreSQL, applies every module migration as the migration owner role, and
   starts the API as the runtime role. The API gained a `--migrate` entry point

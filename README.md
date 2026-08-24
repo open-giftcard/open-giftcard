@@ -364,6 +364,37 @@ only that database gate with:
 .\scripts\Test-PartnerEpinLocal.ps1 -IntegrationOnly -AllIntegrationTests
 ```
 
+### Run the complete local stack without Docker
+
+The repository includes a Windows PowerShell runner for the sibling backend,
+portal, cardholder, and POS repositories. PostgreSQL still runs as an ordinary
+local service. Prepare each application's database once as described in its
+README, then provide the two browser-session connection strings through the
+environment or ignored `.env` files:
+
+```powershell
+$env:ConnectionStrings__Portal = "Host=localhost;Port=5432;Database=giftcard_portal;Username=giftcard_portal_app;Password=<local password>"
+$env:ConnectionStrings__Cardholder = "Host=localhost;Port=5432;Database=giftcard_cardholder;Username=giftcard_cardholder_app;Password=<local password>"
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Start-OpenGiftCardLocal.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Test-OpenGiftCardSmoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Stop-OpenGiftCardLocal.ps1
+```
+
+The start command applies pending backend migrations, keeps per-application
+Data Protection keys and logs under ignored `.local/stack`, waits for all five
+HTTP processes, and records only processes it started. It refuses occupied
+ports by default. Pass `-UseExisting` to verify healthy services that are
+already running; the stop command will leave those processes alone.
+
+The smoke command checks the runtime PostgreSQL role and forced RLS, signs in
+through real API endpoints, reads the seeded tenant and recipient card, creates
+a fresh POS device, performs a balance inquiry, holds and confirms one unit,
+reads the platform receipt, and refunds the full amount. Secrets and payment
+credentials are never written to the console or the process-state file. The
+smoke till secret is reused from an ignored file encrypted to the current
+Windows user through DPAPI.
+
 Use the port printed by `dotnet run`. `/demo` is the responsive development console:
 it guides bootstrap/login, customer onboarding, initial Company Administrator
 assignment, hierarchy, memberships, roles, corporate-credit allocation,
