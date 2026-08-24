@@ -94,12 +94,25 @@ jobs:
         working-directory: release-set/open-giftcard-portal/src/GiftCardPortal.Web
         run: pnpm install --frozen-lockfile
 
+      - name: Download pinned Microsoft SBOM Tool
+        shell: pwsh
+        run: |
+          $sbomToolPath = Join-Path $env:RUNNER_TEMP 'sbom-tool-v4.1.5.exe'
+          Invoke-WebRequest -Uri 'https://github.com/microsoft/sbom-tool/releases/download/v4.1.5/sbom-tool-win-x64.exe' -OutFile $sbomToolPath
+          $expectedHash = '625767B371B7FDD58F40F618B8A86DA0247A33C89E419039C86B4EDBA1DAD4B5'
+          $actualHash = (Get-FileHash -LiteralPath $sbomToolPath -Algorithm SHA256).Hash
+          if ($actualHash -cne $expectedHash) {
+            throw "Microsoft SBOM Tool hash $actualHash does not match $expectedHash."
+          }
+          "SBOM_TOOL_PATH=$sbomToolPath" >> $env:GITHUB_ENV
+
       - name: Build coordinated release artifacts
         working-directory: release-set/open-giftcard
         shell: pwsh
         run: >-
           ./scripts/Build-ReleaseArtifacts.ps1
           -OutputDirectory ../../release-artifacts
+          -SbomToolPath $env:SBOM_TOOL_PATH
           -NoRestore
 
       - name: Upload coordinated artifact set
@@ -108,3 +121,59 @@ jobs:
           name: open-giftcard-release-set
           path: release-artifacts
           if-no-files-found: error
+
+  attest:
+    name: Attest intentional release build
+    if: github.event_name == 'workflow_dispatch'
+    needs: compatibility
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Download coordinated artifact set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: open-giftcard-release-set
+          path: release-artifacts
+
+      - name: Read release identity
+        shell: pwsh
+        run: |
+          $manifest = Get-Content -LiteralPath 'release-artifacts/ARTIFACTS.json' -Raw | ConvertFrom-Json
+          if ([string]$manifest.release -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$') {
+            throw "Artifact manifest carries invalid release '$($manifest.release)'."
+          }
+          "RELEASE_VERSION=$($manifest.release)" >> $env:GITHUB_ENV
+
+      - name: Attest ZIP provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/*.zip
+
+      - name: Attest backend SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/open-giftcard-backend-${{ env.RELEASE_VERSION }}.zip
+          sbom-path: release-artifacts/open-giftcard-backend-${{ env.RELEASE_VERSION }}.spdx.json
+
+      - name: Attest portal SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/open-giftcard-portal-${{ env.RELEASE_VERSION }}.zip
+          sbom-path: release-artifacts/open-giftcard-portal-${{ env.RELEASE_VERSION }}.spdx.json
+
+      - name: Attest cardholder SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/open-giftcard-cardholder-${{ env.RELEASE_VERSION }}.zip
+          sbom-path: release-artifacts/open-giftcard-cardholder-${{ env.RELEASE_VERSION }}.spdx.json
+
+      - name: Attest POS SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/open-giftcard-pos-${{ env.RELEASE_VERSION }}.zip
+          sbom-path: release-artifacts/open-giftcard-pos-${{ env.RELEASE_VERSION }}.spdx.json

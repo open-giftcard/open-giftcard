@@ -525,17 +525,22 @@ Build the coordinated non-Docker release bundle from this repository after all
 four sibling repositories carry the same `RELEASE_COMPATIBILITY.json`:
 
 ```powershell
-.\scripts\Build-ReleaseArtifacts.ps1 -NoRestore
+.\scripts\Build-ReleaseArtifacts.ps1 `
+  -SbomToolPath .\.local\tools\sbom-tool-v4.1.5.exe `
+  -NoRestore
 ```
 
-The command refuses dirty repositories for a real build. Use `-AllowDirty` only
-for a local rehearsal. It publishes the backend, portal BFF plus compiled web
-client, cardholder, and POS into four versioned ZIP files under
-`.local/release-artifacts`, writes `BUILD_INFO.json`, `ARTIFACTS.json`, and
-`SHA256SUMS`, and rejects missing entry points, mismatched release contracts,
-path traversal, and common secret or key file names. An artifact rehearsal is
-not a public release: final commit pins, SBOMs, provenance, staging evidence,
-and tags are separate gates.
+Use Microsoft SBOM Tool v4.1.5. The builder verifies its published SHA-256
+`625767B371B7FDD58F40F618B8A86DA0247A33C89E419039C86B4EDBA1DAD4B5`
+before execution. The command refuses dirty repositories for a real build. Use
+`-AllowDirty` only for a local rehearsal. It publishes the backend, portal BFF
+plus compiled web client, cardholder, and POS into four versioned ZIP files
+under `.local/release-artifacts`. Every ZIP embeds a validated SPDX 2.2 SBOM;
+matching sidecars, `BUILD_INFO.json`, `ARTIFACTS.json`, and `SHA256SUMS` make the
+bundle independently inspectable. The builder also rejects missing entry
+points, mismatched release contracts, path traversal, and common secret or key
+file names. An artifact rehearsal is not a public release: final commit pins,
+CI provenance, staging evidence, and tags are separate gates.
 
 Automatic expiration is enabled by default, polls every 30 seconds, and
 processes at most 50 due cards per batch. Configure it under

@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = '',
+    [Parameter(Mandatory)]
+    [string]$SbomToolPath,
     [switch]$NoRestore,
     [switch]$AllowDirty
 )
@@ -28,6 +30,8 @@ $entryPoints = [ordered]@{
 }
 $runId = [DateTime]::UtcNow.ToString('yyyyMMddHHmmss') + '_' +
     [Guid]::NewGuid().ToString('N').Substring(0, 8)
+$sbomToolVersion = '4.1.5'
+$sbomToolSha256 = '625767B371B7FDD58F40F618B8A86DA0247A33C89E419039C86B4EDBA1DAD4B5'
 
 function Invoke-Checked(
     [string]$Command,
@@ -91,10 +95,37 @@ function Read-ZipJson(
     }
 }
 
+function Test-SbomManifest(
+    [string]$Path,
+    [string]$PackageName,
+    [string]$PackageVersion
+) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "SBOM generator did not create '$Path'."
+    }
+
+    $sbom = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ([string]$sbom.spdxVersion -cne 'SPDX-2.2') {
+        throw "$PackageName SBOM is not SPDX 2.2."
+    }
+    if ([string]$sbom.name -cne "$PackageName $PackageVersion") {
+        throw "$PackageName SBOM carries unexpected package identity '$($sbom.name)'."
+    }
+    $expectedNamespace =
+        "https://github.com/open-giftcard/$PackageName/$PackageVersion/*"
+    if ([string]$sbom.documentNamespace -notlike $expectedNamespace) {
+        throw "$PackageName SBOM carries an unexpected document namespace."
+    }
+    if (@($sbom.files).Count -eq 0 -or @($sbom.packages).Count -eq 0) {
+        throw "$PackageName SBOM must describe files and packages."
+    }
+}
+
 function Test-ReleaseArchive(
     [string]$Component,
     [string]$ArchivePath,
-    [string]$ExpectedContractHash
+    [string]$ExpectedContractHash,
+    [string]$ExpectedSbomHash
 ) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $expectedRoot = "open-giftcard-$Component-$version"
@@ -146,6 +177,22 @@ function Test-ReleaseArchive(
             [bool]$info.dirty -ne [bool]$buildInfo[$Component].dirty) {
             throw "$Component archive BUILD_INFO.json does not match this build."
         }
+
+        $sbomEntry = $archive.GetEntry(
+            "$expectedRoot/_manifest/spdx_2.2/manifest.spdx.json")
+        if ($null -eq $sbomEntry) {
+            throw "$Component archive is missing its SPDX 2.2 SBOM."
+        }
+        $sbomStream = $sbomEntry.Open()
+        try {
+            $sbomHash = Get-StreamSha256 $sbomStream
+        }
+        finally {
+            $sbomStream.Dispose()
+        }
+        if ($sbomHash -cne $ExpectedSbomHash) {
+            throw "$Component archive carries SBOM $sbomHash, expected $ExpectedSbomHash."
+        }
     }
     finally {
         $archive.Dispose()
@@ -156,6 +203,16 @@ foreach ($entry in $repos.GetEnumerator()) {
     if (-not (Test-Path -LiteralPath $entry.Value -PathType Container)) {
         throw "Missing $($entry.Key) repository: $($entry.Value)"
     }
+}
+
+$resolvedSbomTool = (Resolve-Path -LiteralPath $SbomToolPath -ErrorAction Stop).Path
+if (-not (Test-Path -LiteralPath $resolvedSbomTool -PathType Leaf)) {
+    throw "Missing Microsoft SBOM Tool executable: $resolvedSbomTool"
+}
+$actualSbomToolHash = (Get-FileHash -LiteralPath $resolvedSbomTool `
+    -Algorithm SHA256).Hash
+if ($actualSbomToolHash -cne $sbomToolSha256) {
+    throw "Microsoft SBOM Tool v$sbomToolVersion hash $actualSbomToolHash does not match pinned hash $sbomToolSha256."
 }
 
 & (Join-Path $backendRoot 'scripts\Test-ReleaseSet.ps1')
@@ -206,6 +263,7 @@ if (Test-Path -LiteralPath $outputRoot) {
 $workRoot = Join-Path $outputRoot '.work'
 New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
 $temporaryBuildRoots = @()
+$sbomEntries = [ordered]@{}
 
 try {
     foreach ($component in $projects.Keys) {
@@ -261,10 +319,39 @@ try {
             (Join-Path $bundlePath 'BUILD_INFO.json') `
             ($componentInfo | ConvertTo-Json -Depth 5)
 
+        $packageName = "open-giftcard-$component"
+        $packageVersion = $version.TrimStart('v')
+        Write-Host "Generating $component SPDX 2.2 SBOM..."
+        Invoke-Checked $resolvedSbomTool @(
+            'generate',
+            '-b', $bundlePath,
+            '-bc', (Join-Path $repoRoot 'src'),
+            '-pn', $packageName,
+            '-pv', $packageVersion,
+            '-ps', 'Organization: open-giftcard',
+            '-nsb', 'https://github.com/open-giftcard',
+            '-nsu', "$component/$version/$($buildInfo[$component].commit)",
+            '-mi', 'SPDX:2.2',
+            '-D', 'true',
+            '-V', 'Warning'
+        ) $repoRoot
+        $embeddedSbomPath = Join-Path $bundlePath `
+            '_manifest\spdx_2.2\manifest.spdx.json'
+        Test-SbomManifest $embeddedSbomPath $packageName $packageVersion
+        $sbomPath = Join-Path $outputRoot "$packageName-$version.spdx.json"
+        Copy-Item -LiteralPath $embeddedSbomPath -Destination $sbomPath
+        $sbomHash = (Get-FileHash -LiteralPath $sbomPath -Algorithm SHA256).Hash
+        $sbomEntries[$component] = [ordered]@{
+            file = Split-Path $sbomPath -Leaf
+            sha256 = $sbomHash
+            bytes = (Get-Item -LiteralPath $sbomPath).Length
+            format = 'SPDX-2.2'
+        }
+
         $archivePath = Join-Path $outputRoot "open-giftcard-$component-$version.zip"
         Compress-Archive -LiteralPath $bundlePath -DestinationPath $archivePath `
             -CompressionLevel Optimal
-        Test-ReleaseArchive $component $archivePath $contractHash
+        Test-ReleaseArchive $component $archivePath $contractHash $sbomHash
     }
 
     $archives = @(Get-ChildItem -LiteralPath $outputRoot -Filter '*.zip' -File |
@@ -274,14 +361,27 @@ try {
     }
 
     $artifactEntries = foreach ($archive in $archives) {
+        $component = $projects.Keys | Where-Object {
+            $archive.Name -ceq "open-giftcard-$_-$version.zip"
+        }
+        if (@($component).Count -ne 1) {
+            throw "Could not map release archive '$($archive.Name)' to one component."
+        }
+        $component = [string]$component
         $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash
         [ordered]@{
+            component = $component
             file = $archive.Name
             sha256 = $hash
             bytes = $archive.Length
+            sbom = $sbomEntries[$component]
         }
     }
-    @($artifactEntries | ForEach-Object { "$($_.sha256)  $($_.file)" }) |
+    $checksumEntries = foreach ($artifact in $artifactEntries) {
+        "$($artifact.sha256)  $($artifact.file)"
+        "$($artifact.sbom.sha256)  $($artifact.sbom.file)"
+    }
+    @($checksumEntries | Sort-Object { ($_ -split '  ', 2)[1] }) |
         Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS') -Encoding ascii
     $artifactsManifest = [ordered]@{
         release = $version
