@@ -131,7 +131,11 @@ public static class PaymentsModuleExtensions
             provider.GetRequiredService<PaymentProvisionService>());
         services.AddScoped<IPaymentReservationQuery, PaymentReservationQuery>();
         services.AddScoped<IPosRegistrationService, PosRegistrationService>();
-        services.AddScoped<IPosAuthenticationService, PosAuthenticationService>();
+        services.AddScoped<PosAuthenticationService>();
+        services.AddScoped<IPosAuthenticationService>(provider =>
+            provider.GetRequiredService<PosAuthenticationService>());
+        services.AddScoped<IPosPrincipalResolver>(provider =>
+            provider.GetRequiredService<PosAuthenticationService>());
         return services;
     }
 

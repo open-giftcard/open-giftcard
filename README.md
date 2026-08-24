@@ -796,11 +796,20 @@ can also drive the same contract through Swagger or `curl`:
 
 ```text
 POST /api/v1/pos/clients                        register a POS client   (platform)
+POST /api/v1/pos/clients/{id}/disable           retire a POS client     (platform)
 POST /api/v1/pos/clients/{id}/terminals         register a terminal     (platform)
+POST /api/v1/pos/clients/{id}/terminals/{terminalId}/disable  retire one terminal
 POST /api/v1/pos/auth/token                     exchange for a device token
 POST /api/v1/pos/payment-provisions             present the credential, hold value
 POST /api/v1/pos/payment-provisions/{id}/confirm  charge up to the held amount
 ```
+
+Client and terminal retirement is permanent, permission-protected, and audited
+once. The API re-resolves device state from PostgreSQL on every authenticated
+POS request, so both new and already-issued device tokens are refused as soon as
+their client or terminal is disabled. Rotate a client secret by registering a
+replacement client and terminals, moving lanes to the new one-time secret, and
+then disabling the old client; the backend never stores a recoverable secret.
 
 Between the provision and the confirmation, refresh the cardholder view: the
 held amount is reserved and unspendable, but nothing has been posted to the

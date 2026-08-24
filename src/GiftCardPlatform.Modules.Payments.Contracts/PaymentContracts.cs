@@ -262,7 +262,8 @@ public sealed record PosClientResult(
     string Code,
     string DisplayName,
     string Status,
-    DateTimeOffset RegisteredAtUtc);
+    DateTimeOffset RegisteredAtUtc,
+    DateTimeOffset? DisabledAtUtc);
 
 public sealed record RegisterPosTerminalRequest(string? Code, string? StoreReference);
 
@@ -272,7 +273,8 @@ public sealed record PosTerminalResult(
     string Code,
     string StoreReference,
     string Status,
-    DateTimeOffset RegisteredAtUtc);
+    DateTimeOffset RegisteredAtUtc,
+    DateTimeOffset? DisabledAtUtc);
 
 public interface IPosRegistrationService
 {
@@ -282,6 +284,14 @@ public interface IPosRegistrationService
 
     Task<IReadOnlyList<PosClientResult>> GetClientsAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Permanently retires a POS client. New and already-issued device tokens
+    /// are refused on their next request.
+    /// </summary>
+    Task<PosClientResult> DisableClientAsync(
+        Guid posClientId,
+        CancellationToken cancellationToken);
+
     Task<PosTerminalResult> RegisterTerminalAsync(
         Guid posClientId,
         RegisterPosTerminalRequest request,
@@ -289,6 +299,15 @@ public interface IPosRegistrationService
 
     Task<IReadOnlyList<PosTerminalResult>> GetTerminalsAsync(
         Guid posClientId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Permanently retires one till without disabling its sibling terminals.
+    /// New and already-issued device tokens are refused on their next request.
+    /// </summary>
+    Task<PosTerminalResult> DisableTerminalAsync(
+        Guid posClientId,
+        Guid posTerminalId,
         CancellationToken cancellationToken);
 }
 
@@ -325,6 +344,25 @@ public interface IPosAuthenticationService
 {
     Task<PosAccessTokenResult> AuthenticateAsync(
         PosAccessTokenRequest request,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The verified active device behind a POS access token. Token claims carry
+/// identity only; active state is resolved from PostgreSQL on every request.
+/// </summary>
+public sealed record PosPrincipal(Guid PosClientId, Guid PosTerminalId);
+
+/// <summary>
+/// Resolves a signed POS token back to an active client and terminal. Returning
+/// null makes client or terminal retirement effective on the next request
+/// instead of waiting for the access token to expire.
+/// </summary>
+public interface IPosPrincipalResolver
+{
+    Task<PosPrincipal?> ResolveAsync(
+        Guid posClientId,
+        Guid posTerminalId,
         CancellationToken cancellationToken);
 }
 

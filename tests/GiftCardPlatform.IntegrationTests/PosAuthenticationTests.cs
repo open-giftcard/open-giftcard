@@ -236,6 +236,100 @@ public sealed class PosAuthenticationTests(PlatformApiFixture fixture)
     }
 
     [Fact]
+    public async Task Disabling_a_terminal_refuses_new_tokens_but_not_its_siblings()
+    {
+        var client = await RegisterClientAsync();
+        var retired = await RegisterTerminalAsync(client.Id);
+        var sibling = await RegisterTerminalAsync(client.Id);
+        var issuedBeforeDisable = await AuthenticateAsync(client, retired);
+        var route =
+            $"/api/v1/pos/clients/{client.Id}/terminals/{retired.Id}/disable";
+
+        var first = await PlatformOperator(fixture, PlatformPermissions.PosClientsManage)
+            .PostAsync(route, content: null);
+        var second = await PlatformOperator(fixture, PlatformPermissions.PosClientsManage)
+            .PostAsync(route, content: null);
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+        var disabled = (await second.Content
+            .ReadFromJsonAsync<PosTerminalResult>(JsonOptions))!;
+        Assert.Equal("Disabled", disabled.Status);
+        Assert.NotNull(disabled.DisabledAtUtc);
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await TryAuthenticateAsync(client, retired)).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await TryAuthenticateAsync(client, sibling)).StatusCode);
+        Assert.Equal(
+            1,
+            await CountAuditRecordsAsync("pos.terminal.disabled", retired.Id));
+
+        using var alreadyIssued = fixture.Factory.CreateClient();
+        alreadyIssued.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", issuedBeforeDisable.AccessToken);
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await alreadyIssued.GetAsync(
+                $"/api/v1/pos/payment-provisions/{Guid.CreateVersion7()}"))
+            .StatusCode);
+    }
+
+    [Fact]
+    public async Task Disabling_a_client_refuses_new_tokens_and_is_idempotently_audited()
+    {
+        var client = await RegisterClientAsync();
+        var terminal = await RegisterTerminalAsync(client.Id);
+        var route = $"/api/v1/pos/clients/{client.Id}/disable";
+
+        var first = await PlatformOperator(fixture, PlatformPermissions.PosClientsManage)
+            .PostAsync(route, content: null);
+        var second = await PlatformOperator(fixture, PlatformPermissions.PosClientsManage)
+            .PostAsync(route, content: null);
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+        var disabled = (await second.Content
+            .ReadFromJsonAsync<PosClientResult>(JsonOptions))!;
+        Assert.Equal("Disabled", disabled.Status);
+        Assert.NotNull(disabled.DisabledAtUtc);
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            (await TryAuthenticateAsync(client, terminal)).StatusCode);
+        Assert.Equal(
+            1,
+            await CountAuditRecordsAsync("pos.client.disabled", client.Id));
+
+        var terminalRegistration = await PlatformOperator(
+                fixture,
+                PlatformPermissions.PosClientsManage)
+            .PostAsJsonAsync(
+                $"/api/v1/pos/clients/{client.Id}/terminals",
+                new { code = "TILL-AFTER-DISABLE", storeReference = "STORE-DISABLED" });
+        Assert.Equal(HttpStatusCode.Conflict, terminalRegistration.StatusCode);
+    }
+
+    [Fact]
+    public async Task Pos_retirement_requires_the_named_platform_permission()
+    {
+        var client = await RegisterClientAsync();
+        var terminal = await RegisterTerminalAsync(client.Id);
+        var denied = PlatformOperator(fixture, PlatformPermissions.OrganizationsView);
+
+        var clientResponse = await denied.PostAsync(
+            $"/api/v1/pos/clients/{client.Id}/disable",
+            content: null);
+        var terminalResponse = await denied.PostAsync(
+            $"/api/v1/pos/clients/{client.Id}/terminals/{terminal.Id}/disable",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, clientResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, terminalResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await TryAuthenticateAsync(client, terminal)).StatusCode);
+    }
+
+    [Fact]
     public async Task Development_OpenAPI_exposes_pos_authentication_without_secrets()
     {
         var response = await fixture.Factory.CreateClient().GetAsync("/swagger/v1/swagger.json");
@@ -247,12 +341,21 @@ public sealed class PosAuthenticationTests(PlatformApiFixture fixture)
             "/api/v1/pos/auth/token",
             out var tokenPath));
         Assert.True(tokenPath.TryGetProperty("post", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty(
+            "/api/v1/pos/clients/{posClientId}/disable",
+            out var disableClientPath));
+        Assert.True(disableClientPath.TryGetProperty("post", out _));
+        Assert.True(root.GetProperty("paths").TryGetProperty(
+            "/api/v1/pos/clients/{posClientId}/terminals/{posTerminalId}/disable",
+            out var disableTerminalPath));
+        Assert.True(disableTerminalPath.TryGetProperty("post", out _));
 
         var listed = root.GetProperty("components").GetProperty("schemas")
             .GetProperty("PosClientResult")
             .GetProperty("properties");
         Assert.False(listed.TryGetProperty("secret", out _));
         Assert.False(listed.TryGetProperty("secretHash", out _));
+        Assert.True(listed.TryGetProperty("disabledAtUtc", out _));
     }
 
     private async Task<RegisteredPosClientResult> RegisterClientAsync()
@@ -299,5 +402,45 @@ public sealed class PosAuthenticationTests(PlatformApiFixture fixture)
         response.EnsureSuccessStatusCode();
         return (await response.Content
             .ReadFromJsonAsync<PosAccessTokenResult>(JsonOptions))!;
+    }
+
+    private async Task<HttpResponseMessage> TryAuthenticateAsync(
+        RegisteredPosClientResult client,
+        PosTerminalResult terminal)
+    {
+        using var anonymous = fixture.Factory.CreateClient();
+        return await anonymous.PostAsJsonAsync(
+            "/api/v1/pos/auth/token",
+            new
+            {
+                clientCode = client.Code,
+                clientSecret = client.Secret,
+                terminalCode = terminal.Code,
+            });
+    }
+
+    private async Task<long> CountAuditRecordsAsync(string operation, Guid entityId)
+    {
+        await using var connection = new NpgsqlConnection(fixture.AppConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await using (var scope = new NpgsqlCommand(
+            "select set_config('app.is_platform_operator', 'true', true)",
+            connection,
+            transaction))
+        {
+            await scope.ExecuteNonQueryAsync();
+        }
+
+        await using var command = new NpgsqlCommand(
+            """
+            select count(*) from audit.audit_records
+            where operation = @operation and entity_id = @entityId
+            """,
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("operation", operation);
+        command.Parameters.AddWithValue("entityId", entityId.ToString());
+        return (long)(await command.ExecuteScalarAsync())!;
     }
 }

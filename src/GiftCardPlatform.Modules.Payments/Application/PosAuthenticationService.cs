@@ -17,7 +17,8 @@ internal sealed class PosAuthenticationService(
     ITransactionCoordinator transactionCoordinator,
     TimeProvider timeProvider,
     IOptions<PosAuthenticationOptions> posOptions,
-    IOptions<PosTokenSigningOptions> signingOptions) : IPosAuthenticationService
+    IOptions<PosTokenSigningOptions> signingOptions)
+    : IPosAuthenticationService, IPosPrincipalResolver
 {
     private readonly PosAuthenticationOptions settings = posOptions.Value;
     private readonly PosTokenSigningOptions signing = signingOptions.Value;
@@ -101,6 +102,36 @@ internal sealed class PosAuthenticationService(
 
     private static UnauthorizedException InvalidCredentials() =>
         new("pos.credentials.invalid", "The POS credentials are not valid.");
+
+    public async Task<PosPrincipal?> ResolveAsync(
+        Guid posClientId,
+        Guid posTerminalId,
+        CancellationToken cancellationToken)
+    {
+        if (posClientId == Guid.Empty || posTerminalId == Guid.Empty)
+        {
+            return null;
+        }
+
+        await using var transaction = await transactionCoordinator
+            .BeginAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+
+        var active = await (
+                from client in dbContext.PosClients.AsNoTracking()
+                join terminal in dbContext.PosTerminals.AsNoTracking()
+                    on client.Id equals terminal.PosClientId
+                where client.Id == posClientId &&
+                    terminal.Id == posTerminalId &&
+                    client.Status == PosClientStatus.Active &&
+                    terminal.Status == PosTerminalStatus.Active
+                select new PosPrincipal(client.Id, terminal.Id))
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return active;
+    }
 }
 
 /// <summary>

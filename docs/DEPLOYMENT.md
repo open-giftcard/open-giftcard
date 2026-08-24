@@ -396,6 +396,19 @@ reviewer and operator remain accountable for that evidence.
 * Provision POS clients and terminals through the permission-protected API.
   Capture each client secret once into the managed secret store; only its hash
   persists and there is no recovery endpoint.
+* Rotate without an in-place secret overwrite: register a replacement client
+  with a new code, register its lane terminals, place the one-time secret
+  directly into the device store, verify authentication and a reversed payment,
+  move the lanes, then call
+  `POST /api/v1/pos/clients/{oldClientId}/disable`. A lost response during
+  registration therefore never leaves an unknown replacement secret silently
+  active; disable that unused client and repeat with another code.
+* Retire one lane with
+  `POST /api/v1/pos/clients/{clientId}/terminals/{terminalId}/disable`.
+  Client and terminal disablement are permanent and idempotently audited. POS
+  identity is re-resolved from PostgreSQL on every authenticated request, so an
+  already-issued device token is refused immediately after either operation.
+  Sibling terminals remain active when one lane is retired.
 * Treat POS access tokens and both 60-second payment credential forms as
   secrets. Do not log request bodies, QR values, or numeric codes at ingress,
   observability, analytics, or support boundaries.

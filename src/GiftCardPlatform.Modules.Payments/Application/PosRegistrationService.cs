@@ -90,11 +90,55 @@ internal sealed class PosRegistrationService(
                 client.Code,
                 client.DisplayName,
                 client.Status.ToString(),
-                client.RegisteredAtUtc))
+                client.RegisteredAtUtc,
+                client.DisabledAtUtc))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return clients;
+    }
+
+    public async Task<PosClientResult> DisableClientAsync(
+        Guid posClientId,
+        CancellationToken cancellationToken)
+    {
+        RequirePlatformPermission();
+        var now = timeProvider.GetUtcNow();
+
+        await using var transaction = await transactionCoordinator
+            .BeginAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+
+        var client = await dbContext.PosClients
+            .SingleOrDefaultAsync(item => item.Id == posClientId, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException(
+                "pos.client.not_found",
+                "The POS client was not found.");
+        if (!client.IsUsable)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return ToResult(client);
+        }
+
+        client.Disable(now);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await auditRecorder.RecordAsync(
+            new AuditEntry(
+                executionContext.UserId!.Value,
+                AuditActorType.PlatformOperator,
+                null,
+                "pos.client.disabled",
+                nameof(PosClient),
+                client.Id.ToString(),
+                AuditOutcome.Success,
+                executionContext.CorrelationId,
+                new Dictionary<string, string> { ["code"] = client.Code }),
+            cancellationToken).ConfigureAwait(false);
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return ToResult(client);
     }
 
     public async Task<PosTerminalResult> RegisterTerminalAsync(
@@ -188,6 +232,66 @@ internal sealed class PosRegistrationService(
         return terminals.Select(ToResult).ToList();
     }
 
+    public async Task<PosTerminalResult> DisableTerminalAsync(
+        Guid posClientId,
+        Guid posTerminalId,
+        CancellationToken cancellationToken)
+    {
+        RequirePlatformPermission();
+        var now = timeProvider.GetUtcNow();
+
+        await using var transaction = await transactionCoordinator
+            .BeginAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
+
+        var terminal = await dbContext.PosTerminals
+            .SingleOrDefaultAsync(
+                item => item.Id == posTerminalId && item.PosClientId == posClientId,
+                cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException(
+                "pos.terminal.not_found",
+                "The POS terminal was not found.");
+        if (!terminal.IsUsable)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return ToResult(terminal);
+        }
+
+        terminal.Disable(now);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await auditRecorder.RecordAsync(
+            new AuditEntry(
+                executionContext.UserId!.Value,
+                AuditActorType.PlatformOperator,
+                null,
+                "pos.terminal.disabled",
+                nameof(PosTerminal),
+                terminal.Id.ToString(),
+                AuditOutcome.Success,
+                executionContext.CorrelationId,
+                new Dictionary<string, string>
+                {
+                    ["posClientId"] = posClientId.ToString(),
+                    ["code"] = terminal.Code,
+                    ["storeReference"] = terminal.StoreReference,
+                }),
+            cancellationToken).ConfigureAwait(false);
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return ToResult(terminal);
+    }
+
+    private static PosClientResult ToResult(PosClient client) =>
+        new(
+            client.Id,
+            client.Code,
+            client.DisplayName,
+            client.Status.ToString(),
+            client.RegisteredAtUtc,
+            client.DisabledAtUtc);
+
     private static PosTerminalResult ToResult(PosTerminal terminal) =>
         new(
             terminal.Id,
@@ -195,7 +299,8 @@ internal sealed class PosRegistrationService(
             terminal.Code,
             terminal.StoreReference,
             terminal.Status.ToString(),
-            terminal.RegisteredAtUtc);
+            terminal.RegisteredAtUtc,
+            terminal.DisabledAtUtc);
 
     private void RequirePlatformPermission()
     {

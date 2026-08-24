@@ -57,7 +57,7 @@ internal static class AuthenticationRegistration
     {
         // A POS token is a device principal and is checked first: it carries no
         // user subject, so it must never fall through to the user path (ADR-043).
-        if (TryPopulatePosPrincipal(context))
+        if (await TryPopulatePosPrincipalAsync(context).ConfigureAwait(false))
         {
             return;
         }
@@ -140,10 +140,13 @@ internal static class AuthenticationRegistration
     /// Populates a point-of-sale device principal when the token carries the POS
     /// marker claim. A POS token holds no user, organization, or tenant scope, so
     /// tenant RLS fails closed for it and it cannot reach cardholder or
-    /// organization endpoints. An organization header presented alongside one is
-    /// refused rather than ignored, so a till cannot appear to select a customer.
+    /// organization endpoints. Client and terminal status are re-resolved on
+    /// every request, making either retirement immediate. An organization header
+    /// presented alongside one is refused rather than ignored, so a till cannot
+    /// appear to select a customer.
     /// </summary>
-    private static bool TryPopulatePosPrincipal(TokenValidatedContext context)
+    private static async Task<bool> TryPopulatePosPrincipalAsync(
+        TokenValidatedContext context)
     {
         var principal = context.Principal;
         if (principal?.FindFirstValue(PosTokenClaims.Principal) is not PosTokenClaims.PrincipalValue)
@@ -170,9 +173,24 @@ internal static class AuthenticationRegistration
             return true;
         }
 
-        context.HttpContext.RequestServices
-            .GetRequiredService<MutableExecutionContext>()
-            .SetPosClient(posClientId, posTerminalId);
+        var resolver =
+            context.HttpContext.RequestServices.GetRequiredService<IPosPrincipalResolver>();
+        var pos = await resolver
+            .ResolveAsync(
+                posClientId,
+                posTerminalId,
+                context.HttpContext.RequestAborted)
+            .ConfigureAwait(false);
+        var executionContext =
+            context.HttpContext.RequestServices.GetRequiredService<MutableExecutionContext>();
+        if (pos is null)
+        {
+            executionContext.SetAnonymous();
+            context.Fail("An active POS client and terminal are required.");
+            return true;
+        }
+
+        executionContext.SetPosClient(pos.PosClientId, pos.PosTerminalId);
         return true;
     }
 

@@ -53,6 +53,12 @@ cannot reach an RLS session variable. Share PINs are PBKDF2 at 210,000
 iterations. Unknown, expired, consumed, and replayed credentials are refused
 identically so the response is not an oracle.
 
+POS device tokens carry identity only. The active client and terminal are
+re-resolved from PostgreSQL on every request, so permanently disabling either
+one invalidates already-issued device tokens immediately. Client secret rotation
+uses replacement registration followed by audited retirement; no raw secret is
+stored for recovery or in-place replay.
+
 **Sessions.** 15-minute access tokens and rotating 30-day refresh tokens with
 reuse detection: presenting a consumed token revokes the session and its whole
 token family, and records an audit event. Those lifetimes are fixed and startup

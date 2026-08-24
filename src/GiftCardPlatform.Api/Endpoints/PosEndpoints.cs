@@ -30,6 +30,19 @@ internal static class PosEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        app.MapPost($"{ApiRoutes.V1}/pos/clients/{{posClientId:guid}}/disable", DisableClientAsync)
+            .WithTags("POS")
+            .WithName("DisablePosClient")
+            .WithSummary("Permanently retires a point-of-sale integration.")
+            .WithDescription(
+                "New device-token exchanges and already-issued device tokens are refused " +
+                "on their next API request.")
+            .RequireAuthorization()
+            .Produces<PosClientResult>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         app.MapPost($"{ApiRoutes.V1}/pos/clients/{{posClientId:guid}}/terminals", RegisterTerminalAsync)
             .WithTags("POS")
             .WithName("RegisterPosTerminal")
@@ -50,6 +63,22 @@ internal static class PosEndpoints
             .Produces<IReadOnlyList<PosTerminalResult>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        app.MapPost(
+                $"{ApiRoutes.V1}/pos/clients/{{posClientId:guid}}/terminals/{{posTerminalId:guid}}/disable",
+                DisableTerminalAsync)
+            .WithTags("POS")
+            .WithName("DisablePosTerminal")
+            .WithSummary("Permanently retires one till.")
+            .WithDescription(
+                "Sibling tills remain active. New device-token exchanges are refused " +
+                "immediately, and an already-issued device token is refused on its next " +
+                "API request.")
+            .RequireAuthorization()
+            .Produces<PosTerminalResult>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         app.MapPost($"{ApiRoutes.V1}/pos/auth/token", AuthenticateAsync)
             .WithTags("POS")
@@ -84,6 +113,12 @@ internal static class PosEndpoints
         CancellationToken cancellationToken) =>
         Results.Ok(await service.GetClientsAsync(cancellationToken));
 
+    private static async Task<IResult> DisableClientAsync(
+        Guid posClientId,
+        IPosRegistrationService service,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await service.DisableClientAsync(posClientId, cancellationToken));
+
     private static async Task<IResult> RegisterTerminalAsync(
         Guid posClientId,
         [FromBody] RegisterPosTerminalRequest request,
@@ -104,6 +139,16 @@ internal static class PosEndpoints
         IPosRegistrationService service,
         CancellationToken cancellationToken) =>
         Results.Ok(await service.GetTerminalsAsync(posClientId, cancellationToken));
+
+    private static async Task<IResult> DisableTerminalAsync(
+        Guid posClientId,
+        Guid posTerminalId,
+        IPosRegistrationService service,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await service.DisableTerminalAsync(
+            posClientId,
+            posTerminalId,
+            cancellationToken));
 
     private static async Task<IResult> AuthenticateAsync(
         [FromBody] PosAccessTokenRequest request,

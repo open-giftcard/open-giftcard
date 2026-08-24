@@ -66,7 +66,7 @@ same pin in their final metadata commits.
 | Abuse controls | Quotas cannot be multiplied by adding API replicas; refusal behavior is tested | Source verified: partner mint quota is atomic, database-timed, RLS isolated, and returns 429 plus Retry-After across two API hosts; ingress flood-control evidence remains | Maintainer and ingress operator |
 | Notification delivery | Accepted channels have a working provider and durable retry; unsupported channels fail before business acceptance | Source verified locally: unsupported phone distribution and async bulk acceptance return 400 before durable work; direct sharing and outbox use the same guard; SMTP staging evidence and an SMS adapter remain | Maintainer and notification operator |
 | Audit custody | Checkpoint signing key outside database administration; immutable witness; restore and verification drill | Provider seams exist; KMS/HSM and WORM adapters are operator integrations with no staging evidence | Security operator |
-| Secrets | No committed secrets; fail-closed configuration; rotation and revocation procedures | Application checks are partial; POS device custody and installation procedure are blocked | Maintainer and operator |
+| Secrets | No committed secrets; fail-closed configuration; rotation and revocation procedures | Source verified: POS client and terminal retirement are permanent, permission-protected, idempotently audited, and invalidate already-issued device tokens on their next request; replacement-client rotation is documented. Device-bound custody and installation evidence remain operator work | Maintainer and operator |
 | Health and observability | Liveness, readiness, structured logs, metrics, alerts, correlation, runbooks | Source verified: stable OTLP exports bounded readiness, HTTP, worker, and audit metrics; six CI-checked Prometheus-compatible rules and an artifact-bound named-environment evidence gate ship in the backend archive. Collector deployment, live metric evidence, alert routing, and incident-path evidence remain operator work | Maintainer and operator |
 | Backup and recovery | Database plus key-ring backup; timed restoration; restored credential/session verification | Local source verified: backend restore passed in 18.7s with all four key rings; separate portal and cardholder database/key restores passed in 3.0s and 3.1s; ownership, RLS flags, rows, sequences, and SHA-256 manifests matched; staging session evidence remains | Operator |
 | Deployment artifacts | Reproducible, versioned, immutable artifacts for all four applications; provenance and SBOM | Local clean packaging and executable probes are verified; coordinated run `32726035561` produced the four clean hosted bundles with embedded and sidecar SPDX 2.2 SBOMs from the hash-pinned generator; an intentional dispatch with attestations remains | Maintainer and CI |
@@ -90,8 +90,9 @@ Complete these in order unless a later finding changes the dependency:
    shared in PostgreSQL and locally proved across two API hosts. Record the
    public-ingress flood-control configuration and staging evidence.
 4. **Channel and custody safety.** Unsupported notification channels now fail
-   before accepting delivery work. Certify SMTP in staging, then define the POS
-   device enrollment, rotation, and retirement boundary.
+   before accepting delivery work. POS replacement-client rotation and
+   immediate client/terminal retirement are now defined; certify SMTP and the
+   device-store installation procedure in staging.
 5. **Release artifacts.** The coordinated non-Docker builder now emits and
    validates four versioned artifacts, checksums, build metadata, and the shared
    manifest. Freeze clean commits, then add SBOMs and CI provenance to the final
