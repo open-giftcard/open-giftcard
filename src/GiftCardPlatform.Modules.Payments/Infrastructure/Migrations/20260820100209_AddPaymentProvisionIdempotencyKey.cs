@@ -24,12 +24,25 @@ namespace GiftCardPlatform.Modules.Payments.Infrastructure.Migrations
             // more than one provision. Each row is given its own id, which is
             // unique by construction and is the truthful answer to "what did the
             // till call this attempt": nothing, because it could not yet.
+            //
+            // payment_provisions uses FORCE ROW LEVEL SECURITY. The migration
+            // owner deliberately has NOBYPASSRLS, so the backfill must enter the
+            // same explicit platform-operator context used by legitimate
+            // cross-tenant application work. The setting is transaction-local:
+            // it is reset below and PostgreSQL also discards it on rollback.
+            // RLS therefore stays enabled and forced for the entire migration.
+            migrationBuilder.Sql(
+                "SELECT set_config('app.is_platform_operator', 'true', true);");
+
             migrationBuilder.Sql(
                 """
                 UPDATE payments.payment_provisions
                 SET idempotency_key = id::text
                 WHERE idempotency_key = '';
                 """);
+
+            migrationBuilder.Sql(
+                "SELECT set_config('app.is_platform_operator', '', true);");
 
             migrationBuilder.CreateIndex(
                 name: "ux_payment_provisions_client_idempotency",
