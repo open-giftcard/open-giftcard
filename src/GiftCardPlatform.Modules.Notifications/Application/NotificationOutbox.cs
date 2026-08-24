@@ -11,6 +11,7 @@ internal sealed class NotificationOutbox(
     NotificationsDbContext dbContext,
     ITransactionCoordinator transactionCoordinator,
     INotificationPayloadProtector protector,
+    INotificationChannelAvailability channelAvailability,
     TimeProvider timeProvider) : INotificationOutbox
 {
     public async Task EnqueueAsync(
@@ -48,6 +49,8 @@ internal sealed class NotificationOutbox(
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
+
+        channelAvailability.RequireAvailable(request.Channel);
 
         var message = OutboxMessage.Create(
             request,

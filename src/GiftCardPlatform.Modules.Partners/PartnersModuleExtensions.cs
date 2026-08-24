@@ -46,6 +46,20 @@ public static class PartnersModuleExtensions
                     options.CredentialFailureWindowSeconds = failureWindow;
                 }
 
+                if (int.TryParse(
+                        section.GetSection("MintRateLimit")["PermitLimit"],
+                        out var mintPermitLimit))
+                {
+                    options.MintPermitLimit = mintPermitLimit;
+                }
+
+                if (int.TryParse(
+                        section.GetSection("MintRateLimit")["WindowSeconds"],
+                        out var mintWindowSeconds))
+                {
+                    options.MintWindowSeconds = mintWindowSeconds;
+                }
+
                 options.ClaimBaseUrl = section[nameof(options.ClaimBaseUrl)] ?? options.ClaimBaseUrl;
                 if (int.TryParse(
                         section[nameof(options.OrphanClaimLifetimeDays)],
@@ -75,6 +89,12 @@ public static class PartnersModuleExtensions
             .Validate(
                 options => options.CredentialFailureWindowSeconds is >= 10 and <= 3600,
                 "Partners:CredentialFailureWindowSeconds must be between 10 and 3600.")
+            .Validate(
+                options => options.MintPermitLimit is >= 1 and <= 100_000,
+                "Partners:MintRateLimit:PermitLimit must be between 1 and 100000.")
+            .Validate(
+                options => options.MintWindowSeconds is >= 1 and <= 3600,
+                "Partners:MintRateLimit:WindowSeconds must be between 1 and 3600.")
             .Validate(
                 options => Uri.TryCreate(options.ClaimBaseUrl, UriKind.Absolute, out var uri) &&
                     uri.Scheme is "http" or "https",
@@ -126,6 +146,7 @@ public static class PartnersModuleExtensions
         // Singleton: the failure window must be shared across requests, which
         // is the whole point of counting per client rather than per request.
         services.AddSingleton<IPartnerCredentialThrottle, PartnerCredentialThrottle>();
+        services.AddScoped<IPartnerMintQuota, PartnerMintQuota>();
         services.AddScoped<IPartnerRegistrationService, PartnerRegistrationService>();
         services.AddScoped<PartnerAuthenticationService>();
         services.AddScoped<IPartnerAuthenticationService>(provider =>

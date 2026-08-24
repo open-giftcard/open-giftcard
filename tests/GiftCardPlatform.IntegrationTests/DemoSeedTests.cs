@@ -148,9 +148,9 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
     [Fact]
     public async Task Seed_produces_a_balanced_ledger_and_a_derived_card_balance()
     {
-        await RunSeedAsync().ConfigureAwait(false);
+        await RunSeedAsync();
 
-        var organizationId = await OrganizationIdAsync().ConfigureAwait(false);
+        var organizationId = await OrganizationIdAsync();
         Assert.NotNull(organizationId);
 
         // The organization and both of its children exist.
@@ -159,7 +159,7 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
             await ScalarAsync<long>(
                 "select count(*) from organizations.organizations " +
                 "where parent_organization_id = @org",
-                organizationId).ConfigureAwait(false));
+                organizationId));
 
         // Every transaction this seed posted balances, per currency. This is the
         // invariant the whole financial model rests on.
@@ -174,7 +174,7 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
               having sum(case when e.direction = 'Credit' then e.amount else -e.amount end) <> 0
             ) unbalanced
             """,
-            organizationId).ConfigureAwait(false);
+            organizationId);
         Assert.Equal(0, unbalanced);
 
         // The spent card's remaining value is derived from ledger entries, not
@@ -190,7 +190,7 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
             join gift_cards.gift_cards g on g.id = a.gift_card_id
             where g.funding_organization_id = @org and g.owner_user_id is not null
             """,
-            organizationId).ConfigureAwait(false);
+            organizationId);
         Assert.Equal(CardAmount - PaymentAmount + RefundAmount, derived);
 
         // The untouched card is still in organization inventory at full value.
@@ -206,13 +206,13 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
                 join gift_cards.gift_cards g on g.id = a.gift_card_id
                 where g.funding_organization_id = @org and g.owner_user_id is null
                 """,
-                organizationId).ConfigureAwait(false));
+                organizationId));
 
         Assert.Equal(
             2,
             await ScalarAsync<long>(
                 "select count(*) from gift_cards.gift_cards where funding_organization_id = @org",
-                organizationId).ConfigureAwait(false));
+                organizationId));
 
         Assert.Equal(
             PaymentAmount,
@@ -220,7 +220,7 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
                 "select coalesce(sum(p.confirmed_amount), 0) from payments.payment_provisions p " +
                 "join gift_cards.gift_cards g on g.id = p.gift_card_id " +
                 "where g.funding_organization_id = @org",
-                organizationId).ConfigureAwait(false));
+                organizationId));
 
         Assert.Equal(
             RefundAmount,
@@ -229,7 +229,7 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
                 "join payments.payment_provisions p on p.id = r.payment_provision_id " +
                 "join gift_cards.gift_cards g on g.id = p.gift_card_id " +
                 "where g.funding_organization_id = @org",
-                organizationId).ConfigureAwait(false));
+                organizationId));
 
         // The card left organization inventory and is owned by the recipient the
         // claim created, which is what makes the demonstration look real.
@@ -238,15 +238,15 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
             await ScalarAsync<long>(
                 "select count(*) from gift_cards.gift_cards " +
                 "where funding_organization_id = @org and owner_user_id is not null",
-                organizationId).ConfigureAwait(false));
+                organizationId));
     }
 
     [Fact]
     public async Task Seed_is_idempotent_and_does_not_post_twice()
     {
-        await RunSeedAsync().ConfigureAwait(false);
+        await RunSeedAsync();
 
-        var organizationId = await OrganizationIdAsync().ConfigureAwait(false);
+        var organizationId = await OrganizationIdAsync();
         Assert.NotNull(organizationId);
 
         const string TransactionCount =
@@ -258,8 +258,8 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
             """;
 
         var transactionsBefore = await ScalarAsync<long>(TransactionCount, organizationId)
-            .ConfigureAwait(false);
-        var netBefore = await ScalarAsync<decimal>(EntrySum, organizationId).ConfigureAwait(false);
+;
+        var netBefore = await ScalarAsync<decimal>(EntrySum, organizationId);
 
         Assert.True(transactionsBefore > 0, "The first seed run posted no ledger transactions.");
 
@@ -267,22 +267,22 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
         await using (var second = SeedingHost())
         {
             _ = second.Services;
-            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(5));
         }
 
         Assert.Equal(
             transactionsBefore,
-            await ScalarAsync<long>(TransactionCount, organizationId).ConfigureAwait(false));
+            await ScalarAsync<long>(TransactionCount, organizationId));
         Assert.Equal(
             netBefore,
-            await ScalarAsync<decimal>(EntrySum, organizationId).ConfigureAwait(false));
+            await ScalarAsync<decimal>(EntrySum, organizationId));
 
         // And it did not create a second organization under the same code.
         Assert.Equal(
             1,
             await ScalarAsync<long>(
                 "select count(*) from organizations.organizations where code = @org",
-                OrganizationCode).ConfigureAwait(false));
+                OrganizationCode));
     }
 }
 

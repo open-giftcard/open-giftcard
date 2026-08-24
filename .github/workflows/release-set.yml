@@ -1,0 +1,110 @@
+name: Coordinated release set
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/release-set.yml"
+      - "RELEASE_COMPATIBILITY.json"
+      - "scripts/Build-ReleaseArtifacts.ps1"
+      - "scripts/Test-ReleaseContract.ps1"
+      - "scripts/Test-ReleaseSet.ps1"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Matching branch or tag to verify in all four repositories
+        required: true
+        default: milestone/deployment-certified-rc
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-set-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: Four-repository compatibility
+    runs-on: windows-latest
+    env:
+      RELEASE_REF: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.ref }}
+    steps:
+      - name: Check out backend
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: release-set/open-giftcard
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Check out portal
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: open-giftcard/open-giftcard-portal
+          path: release-set/open-giftcard-portal
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Check out cardholder
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: open-giftcard/open-giftcard-cardholder
+          path: release-set/open-giftcard-cardholder
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Check out POS
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: open-giftcard/open-giftcard-pos
+          path: release-set/open-giftcard-pos
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Reject stale or mixed release contracts
+        shell: pwsh
+        run: >-
+          ./release-set/open-giftcard/scripts/Test-ReleaseSet.ps1
+          -PortalRoot ./release-set/open-giftcard-portal
+          -CardholderRoot ./release-set/open-giftcard-cardholder
+          -PosRoot ./release-set/open-giftcard-pos
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: release-set/open-giftcard/global.json
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.9.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: release-set/open-giftcard-portal/src/GiftCardPortal.Web/pnpm-lock.yaml
+
+      - name: Restore .NET repositories
+        shell: pwsh
+        run: |
+          dotnet restore ./release-set/open-giftcard/GiftCardPlatform.slnx
+          dotnet restore ./release-set/open-giftcard-portal/GiftCardPortal.slnx
+          dotnet restore ./release-set/open-giftcard-cardholder/GiftCardCardholder.slnx
+          dotnet restore ./release-set/open-giftcard-pos/GiftCardPos.slnx
+
+      - name: Install portal frontend
+        working-directory: release-set/open-giftcard-portal/src/GiftCardPortal.Web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build coordinated release artifacts
+        working-directory: release-set/open-giftcard
+        shell: pwsh
+        run: >-
+          ./scripts/Build-ReleaseArtifacts.ps1
+          -OutputDirectory ../../release-artifacts
+          -NoRestore
+
+      - name: Upload coordinated artifact set
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: open-giftcard-release-set
+          path: release-artifacts
+          if-no-files-found: error

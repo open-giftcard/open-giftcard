@@ -180,6 +180,131 @@ public sealed class GiftCardDistributionTests(PlatformApiFixture fixture)
     }
 
     [Fact]
+    public async Task Phone_distribution_is_rejected_before_commit_without_an_sms_sender()
+    {
+        var setup = await PrepareCardAsync();
+        var request = NewDistribution(
+            RecipientContactType.Phone,
+            "+90555" + RandomNumberGenerator.GetInt32(10_000_000, 99_999_999));
+        var keysPath = Path.Combine(
+            Path.GetTempPath(),
+            "open-giftcard-channel-tests",
+            Guid.NewGuid().ToString("N"));
+
+        await using var session = await ScopedSqlSession.OpenAsOrganizationAsync(
+            fixture,
+            setup.OrganizationId);
+        var queuedBefore = await session.ScalarCountAsync(
+            "select count(*) from notifications.outbox_messages;");
+        using var authorized = DistributionClient(setup.OrganizationId);
+        (await authorized.GetAsync("/health")).EnsureSuccessStatusCode();
+        await using var production = fixture.Factory.WithWebHostBuilder(webHost =>
+        {
+            webHost.UseEnvironment("Production");
+            webHost.UseSetting("DataProtection:KeysPath", keysPath);
+        });
+        using var client = production.CreateClient();
+        client.DefaultRequestHeaders.Authorization = authorized.DefaultRequestHeaders.Authorization;
+        client.DefaultRequestHeaders.Add(
+            OrganizationIdHeader,
+            setup.OrganizationId.ToString());
+
+        try
+        {
+            var response = await client.PostAsJsonAsync(
+                DistributionRoute(setup.OrganizationId, setup.Card.Id),
+                request);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var problem = (await response.Content.ReadFromJsonAsync<JsonElement>())!;
+            Assert.Equal(
+                "notification.channel.unconfigured",
+                problem.GetProperty("code").GetString());
+            Assert.Equal(
+                0,
+                await session.ScalarCountAsync(
+                    """
+                    select count(*)
+                    from distribution.invitations
+                    where idempotency_key = @idempotency_key;
+                    """,
+                    command => command.Parameters.AddWithValue(
+                        "idempotency_key",
+                        request.IdempotencyKey)));
+            Assert.Equal(
+                queuedBefore,
+                await session.ScalarCountAsync(
+                    "select count(*) from notifications.outbox_messages;"));
+        }
+        finally
+        {
+            if (Directory.Exists(keysPath))
+            {
+                Directory.Delete(keysPath, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Existing_phone_distribution_replays_after_sms_sender_is_removed()
+    {
+        var setup = await PrepareCardAsync();
+        var request = NewDistribution(
+            RecipientContactType.Phone,
+            "+90555" + RandomNumberGenerator.GetInt32(10_000_000, 99_999_999));
+        using var authorized = DistributionClient(setup.OrganizationId);
+        var firstResponse = await authorized.PostAsJsonAsync(
+            DistributionRoute(setup.OrganizationId, setup.Card.Id),
+            request);
+        firstResponse.EnsureSuccessStatusCode();
+        var first = (await firstResponse.Content.ReadFromJsonAsync<InvitationResponse>(
+            ApiJsonOptions))!;
+
+        await using var session = await ScopedSqlSession.OpenAsOrganizationAsync(
+            fixture,
+            setup.OrganizationId);
+        var queuedBefore = await session.ScalarCountAsync(
+            "select count(*) from notifications.outbox_messages;");
+        var keysPath = Path.Combine(
+            Path.GetTempPath(),
+            "open-giftcard-channel-tests",
+            Guid.NewGuid().ToString("N"));
+        await using var production = fixture.Factory.WithWebHostBuilder(webHost =>
+        {
+            webHost.UseEnvironment("Production");
+            webHost.UseSetting("DataProtection:KeysPath", keysPath);
+        });
+        using var client = production.CreateClient();
+        client.DefaultRequestHeaders.Authorization = authorized.DefaultRequestHeaders.Authorization;
+        client.DefaultRequestHeaders.Add(
+            OrganizationIdHeader,
+            setup.OrganizationId.ToString());
+
+        try
+        {
+            var replayResponse = await client.PostAsJsonAsync(
+                DistributionRoute(setup.OrganizationId, setup.Card.Id),
+                request);
+
+            replayResponse.EnsureSuccessStatusCode();
+            var replay = (await replayResponse.Content.ReadFromJsonAsync<InvitationResponse>(
+                ApiJsonOptions))!;
+            Assert.Equal(first, replay);
+            Assert.Equal(
+                queuedBefore,
+                await session.ScalarCountAsync(
+                    "select count(*) from notifications.outbox_messages;"));
+        }
+        finally
+        {
+            if (Directory.Exists(keysPath))
+            {
+                Directory.Delete(keysPath, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Existing_contact_is_associated_without_resetting_its_password()
     {
         var setup = await PrepareCardAsync();

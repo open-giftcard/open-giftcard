@@ -8,6 +8,7 @@ using GiftCardPlatform.Modules.Distribution.Contracts;
 using GiftCardPlatform.Modules.Distribution.Domain;
 using GiftCardPlatform.Modules.Distribution.Infrastructure;
 using GiftCardPlatform.Modules.GiftCards.Contracts;
+using GiftCardPlatform.Modules.Notifications.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -24,6 +25,7 @@ internal sealed class GiftCardDistributionService(
     IOrganizationPermissionAuthorizer organizationAuthorizer,
     IAuditRecorder auditRecorder,
     IGiftCardClaimNotifier notifier,
+    INotificationChannelAvailability notificationChannels,
     ITransactionCoordinator transactionCoordinator,
     IExecutionContext executionContext,
     IOptions<DistributionOptions> options,
@@ -59,7 +61,6 @@ internal sealed class GiftCardDistributionService(
                 OrganizationPermissions.GiftCardsDistribute,
                 cancellationToken)
             .ConfigureAwait(false);
-
         var fundingOrganizationId = executionContext.TenantRootOrganizationId
             ?? throw new ForbiddenException(
                 "auth.unauthenticated",
@@ -104,7 +105,6 @@ internal sealed class GiftCardDistributionService(
                 "bulk.processor.scope.required",
                 "Accepted batch funding and actor attribution are required.");
         }
-
         return await PrepareCoreAsync(
                 organizationId,
                 fundingOrganizationId,
@@ -159,6 +159,11 @@ internal sealed class GiftCardDistributionService(
                     DistributionMapping.ToResult(existing),
                     Notification: null);
             }
+
+            notificationChannels.RequireAvailable(
+                intent.ContactType == RecipientContactType.Email
+                    ? NotificationChannel.Email
+                    : NotificationChannel.Sms);
 
             var now = timeProvider.GetUtcNow();
             var invitationId = Guid.CreateVersion7();

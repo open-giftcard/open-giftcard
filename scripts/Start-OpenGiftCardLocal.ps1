@@ -5,7 +5,9 @@ param(
     [ValidateRange(10, 600)]
     [int]$TimeoutSeconds = 180,
     [string]$PortalConnectionString = $env:ConnectionStrings__Portal,
+    [string]$PortalMigrationsConnectionString = $env:ConnectionStrings__PortalMigrations,
     [string]$CardholderConnectionString = $env:ConnectionStrings__Cardholder,
+    [string]$CardholderMigrationsConnectionString = $env:ConnectionStrings__CardholderMigrations,
     [string]$PosClientSecret = $env:Pos__ClientSecret
 )
 
@@ -50,9 +52,19 @@ if ([string]::IsNullOrWhiteSpace($PortalConnectionString) -and
     $portalEnv.Contains('ConnectionStrings__Portal')) {
     $PortalConnectionString = [string]$portalEnv['ConnectionStrings__Portal']
 }
+if ([string]::IsNullOrWhiteSpace($PortalMigrationsConnectionString) -and
+    $portalEnv.Contains('ConnectionStrings__PortalMigrations')) {
+    $PortalMigrationsConnectionString =
+        [string]$portalEnv['ConnectionStrings__PortalMigrations']
+}
 if ([string]::IsNullOrWhiteSpace($CardholderConnectionString) -and
     $cardholderEnv.Contains('ConnectionStrings__Cardholder')) {
     $CardholderConnectionString = [string]$cardholderEnv['ConnectionStrings__Cardholder']
+}
+if ([string]::IsNullOrWhiteSpace($CardholderMigrationsConnectionString) -and
+    $cardholderEnv.Contains('ConnectionStrings__CardholderMigrations')) {
+    $CardholderMigrationsConnectionString =
+        [string]$cardholderEnv['ConnectionStrings__CardholderMigrations']
 }
 if ([string]::IsNullOrWhiteSpace($PosClientSecret) -and
     $posEnv.Contains('Pos__ClientSecret')) {
@@ -196,6 +208,32 @@ try {
         [string]::IsNullOrWhiteSpace($PortalConnectionString)) {
         throw 'ConnectionStrings__Portal is required to start the portal BFF. Set it in the environment, pass -PortalConnectionString, or add an ignored portal .env file.'
     }
+    if (!(Test-OpenGiftCardUrl -Uri 'http://127.0.0.1:5179/health/ready')) {
+        if ([string]::IsNullOrWhiteSpace($PortalMigrationsConnectionString)) {
+            $PortalMigrationsConnectionString = $PortalConnectionString
+            Write-Warning 'Using the portal runtime connection for local migrations. Configure ConnectionStrings__PortalMigrations to exercise split roles.'
+        }
+        $portalMigrationArguments = @('run', '--no-launch-profile')
+        if ($SkipBuild) {
+            $portalMigrationArguments += '--no-build'
+        }
+        $portalMigrationArguments += @(
+            '--project', 'src\GiftCardPortal.Bff', '--', '--migrate')
+        $portalMigration = Start-OpenGiftCardProcess `
+            -FilePath $dotnet `
+            -ArgumentList $portalMigrationArguments `
+            -WorkingDirectory $paths.Portal `
+            -Environment @{
+                ConnectionStrings__Portal = $PortalConnectionString
+                ConnectionStrings__PortalMigrations = $PortalMigrationsConnectionString
+            } `
+            -RedirectStandardOutput (Join-Path $logDirectory 'portal-migrations.out.log') `
+            -RedirectStandardError (Join-Path $logDirectory 'portal-migrations.err.log') `
+            -Wait
+        if ($portalMigration.ExitCode -ne 0) {
+            throw "Portal migrations failed. Check '$(Join-Path $logDirectory 'portal-migrations.err.log')'."
+        }
+    }
     $portalProcessEnv = @{
         ASPNETCORE_ENVIRONMENT = 'Development'
         ASPNETCORE_URLS = 'http://127.0.0.1:5179'
@@ -231,6 +269,32 @@ try {
     if (!(Test-OpenGiftCardUrl -Uri 'http://127.0.0.1:5180/health/ready') -and
         [string]::IsNullOrWhiteSpace($CardholderConnectionString)) {
         throw 'ConnectionStrings__Cardholder is required to start the cardholder app. Set it in the environment, pass -CardholderConnectionString, or add an ignored cardholder .env file.'
+    }
+    if (!(Test-OpenGiftCardUrl -Uri 'http://127.0.0.1:5180/health/ready')) {
+        if ([string]::IsNullOrWhiteSpace($CardholderMigrationsConnectionString)) {
+            $CardholderMigrationsConnectionString = $CardholderConnectionString
+            Write-Warning 'Using the cardholder runtime connection for local migrations. Configure ConnectionStrings__CardholderMigrations to exercise split roles.'
+        }
+        $cardholderMigrationArguments = @('run', '--no-launch-profile')
+        if ($SkipBuild) {
+            $cardholderMigrationArguments += '--no-build'
+        }
+        $cardholderMigrationArguments += @(
+            '--project', 'src\GiftCardCardholder.Web', '--', '--migrate')
+        $cardholderMigration = Start-OpenGiftCardProcess `
+            -FilePath $dotnet `
+            -ArgumentList $cardholderMigrationArguments `
+            -WorkingDirectory $paths.Cardholder `
+            -Environment @{
+                ConnectionStrings__Cardholder = $CardholderConnectionString
+                ConnectionStrings__CardholderMigrations = $CardholderMigrationsConnectionString
+            } `
+            -RedirectStandardOutput (Join-Path $logDirectory 'cardholder-migrations.out.log') `
+            -RedirectStandardError (Join-Path $logDirectory 'cardholder-migrations.err.log') `
+            -Wait
+        if ($cardholderMigration.ExitCode -ne 0) {
+            throw "Cardholder migrations failed. Check '$(Join-Path $logDirectory 'cardholder-migrations.err.log')'."
+        }
     }
     $cardholderProcessEnv = @{
         ASPNETCORE_ENVIRONMENT = 'Development'

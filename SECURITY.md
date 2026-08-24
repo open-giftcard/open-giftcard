@@ -74,14 +74,18 @@ here should be read as a production-readiness claim.
   Checkpointing therefore refuses to start outside Development rather than
   falling back to a local key. This is the largest gap between the audit model
   as described and a deployment you could rely on.
-- **The partner mint velocity limiter is per process.** With more than one API
-  replica, enforce an equivalent quota at the authenticated ingress. The prepaid
-  float and the per-order ceiling remain the authoritative financial bounds.
-- **No SMS provider.** A phone-channel notification dead-letters rather than
-  being delivered.
+- **Ingress flood control remains operator-owned.** Authenticated partner mint
+  velocity is enforced in PostgreSQL and stays exact across API replicas. The
+  public ingress must still apply a coarse source-IP limit before authentication
+  to protect connection and CPU capacity. The prepaid float and per-order ceiling
+  remain the authoritative financial bounds.
+- **No SMS provider.** Outside Development, phone distribution, direct sharing,
+  and bulk acceptance are rejected before commit. An operator must add and
+  certify an SMS adapter before enabling those journeys.
 - **The POS till is a reference client, not retail software.** It now carries
   response security headers, a pinned API contract, readiness, and durable key
-  configuration, but has not completed a live-backend or browser certification.
+  configuration. The non-Docker smoke gate proves a live backend payment and
+  full refund; physical device and human browser certification remain.
 - **No staging certification, no threat model document, no penetration test.**
 
 ## Scope

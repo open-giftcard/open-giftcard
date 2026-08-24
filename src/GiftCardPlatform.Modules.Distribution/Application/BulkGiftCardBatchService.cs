@@ -8,6 +8,7 @@ using GiftCardPlatform.Modules.Distribution.Contracts;
 using GiftCardPlatform.Modules.Distribution.Domain;
 using GiftCardPlatform.Modules.Distribution.Infrastructure;
 using GiftCardPlatform.Modules.GiftCards.Contracts;
+using GiftCardPlatform.Modules.Notifications.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -20,6 +21,7 @@ internal sealed class BulkGiftCardBatchService(
     IGiftCardIssuanceRequestValidator issuanceValidator,
     IOrganizationPermissionAuthorizer organizationAuthorizer,
     IAuditRecorder auditRecorder,
+    INotificationChannelAvailability notificationChannels,
     ITransactionCoordinator transactionCoordinator,
     IExecutionContext executionContext,
     TimeProvider timeProvider) : IBulkGiftCardBatchService
@@ -57,6 +59,8 @@ internal sealed class BulkGiftCardBatchService(
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 return BulkGiftCardBatchMapping.ToResult(existing);
             }
+
+            RequireNotificationChannels(intent);
 
             batch = BulkGiftCardBatch.CreateSynchronous(
                 Guid.CreateVersion7(),
@@ -147,6 +151,8 @@ internal sealed class BulkGiftCardBatchService(
                 return BulkGiftCardBatchMapping.ToSummary(existing);
             }
 
+            RequireNotificationChannels(intent);
+
             var batch = BulkGiftCardBatch.CreatePending(
                 Guid.CreateVersion7(),
                 actor.FundingOrganizationId,
@@ -199,6 +205,19 @@ internal sealed class BulkGiftCardBatchService(
             ?? throw BatchNotFound();
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return BulkGiftCardBatchMapping.ToResult(batch);
+    }
+
+    private void RequireNotificationChannels(BulkGiftCardBatchIntent intent)
+    {
+        foreach (var contactType in intent.Items
+                     .Select(item => item.ContactType)
+                     .Distinct())
+        {
+            notificationChannels.RequireAvailable(
+                contactType == RecipientContactType.Email
+                    ? NotificationChannel.Email
+                    : NotificationChannel.Sms);
+        }
     }
 
     public async Task<BulkGiftCardBatchPage> GetPageAsync(
@@ -303,6 +322,7 @@ internal sealed class BulkGiftCardBatchService(
                 .Select(item => item.ToIntent())
                 .ToArray();
             var retryIntent = BulkGiftCardBatchIntent.CreateRetry(source, failedIntents);
+            RequireNotificationChannels(retryIntent);
             var retry = BulkGiftCardBatch.CreatePending(
                 Guid.CreateVersion7(),
                 actor.FundingOrganizationId,

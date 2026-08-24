@@ -44,6 +44,13 @@ internal static class DatabaseMigrator
     {
         var builder = Host.CreateApplicationBuilder(args);
 
+        // The Windows default provider set includes Event Log. An unprivileged
+        // deployment account may not write it, and that logging failure can
+        // replace the real migration exception. Migration output is an operator
+        // stream, so keep it deterministic and console-only on every platform.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSimpleConsole();
+
         var migrationsConnection = builder.Configuration[ConnectionVariable];
         if (string.IsNullOrWhiteSpace(migrationsConnection))
         {

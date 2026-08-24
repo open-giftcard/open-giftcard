@@ -8,6 +8,7 @@ using GiftCardPlatform.Modules.Audit.Contracts;
 using GiftCardPlatform.Modules.GiftCards.Contracts;
 using GiftCardPlatform.Modules.Identity.Contracts;
 using GiftCardPlatform.Modules.Ledger.Contracts;
+using GiftCardPlatform.Modules.Notifications.Contracts;
 using GiftCardPlatform.Modules.Payments.Contracts;
 using GiftCardPlatform.Modules.Sharing.Contracts;
 using GiftCardPlatform.Modules.Sharing.Domain;
@@ -30,6 +31,7 @@ internal sealed class GiftCardShareService(
     IRecipientIdentityService recipientIdentityService,
     IRecipientClaimSessionIssuer recipientClaimSessionIssuer,
     IDirectGiftCardShareNotifier directNotifier,
+    INotificationChannelAvailability notificationChannels,
     IAuditRecorder auditRecorder,
     ITransactionCoordinator transactionCoordinator,
     ISessionContextWriter sessionContextWriter,
@@ -177,7 +179,6 @@ internal sealed class GiftCardShareService(
         var contact = recipientContactService.NormalizeAndMask(
             contactType,
             request.RecipientContact);
-
         await using var transaction = await transactionCoordinator
             .BeginAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
         await transaction.EnlistAsync(dbContext, cancellationToken).ConfigureAwait(false);
@@ -217,6 +218,11 @@ internal sealed class GiftCardShareService(
                     DeliveryDispatchedThisRequest: false),
                 Notification: null);
         }
+
+        notificationChannels.RequireAvailable(
+            request.ContactType == GiftCardShareContactType.Email
+                ? NotificationChannel.Email
+                : NotificationChannel.Sms);
 
         var activeReserved = await GetActiveReservedAmountCoreAsync(
             sourceGiftCardId,

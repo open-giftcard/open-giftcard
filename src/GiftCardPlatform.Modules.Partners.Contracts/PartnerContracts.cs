@@ -158,6 +158,19 @@ public interface IPartnerPrincipalResolver
 }
 
 /// <summary>
+/// One lease from the shared partner mint budget. The implementation is backed
+/// by PostgreSQL so adding API replicas never multiplies the permitted rate.
+/// </summary>
+public sealed record PartnerMintQuotaLease(bool Acquired, int RetryAfterSeconds);
+
+public interface IPartnerMintQuota
+{
+    Task<PartnerMintQuotaLease> TryAcquireAsync(
+        Guid partnerClientId,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Claim names on a partner access token. The token carries identity only: the
 /// funding organization is resolved server-side by
 /// <see cref="IPartnerPrincipalResolver"/>, never read from here.
@@ -200,6 +213,12 @@ public sealed class PartnersOptions
     /// than needing an operator.
     /// </summary>
     public int CredentialFailureWindowSeconds { get; set; } = 60;
+
+    /// <summary>Shared mint permits per authenticated client and fixed window.</summary>
+    public int MintPermitLimit { get; set; } = 60;
+
+    /// <summary>Length of the PostgreSQL-backed mint window.</summary>
+    public int MintWindowSeconds { get; set; } = 60;
 
     /// <summary>
     /// Base URL the buyer's claim link is built on, pointing at the cardholder

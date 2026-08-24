@@ -1,3 +1,4 @@
+using GiftCardPlatform.BuildingBlocks.Execution;
 using GiftCardPlatform.Modules.GiftCards.Contracts;
 using GiftCardPlatform.Modules.Distribution.Contracts;
 using GiftCardPlatform.Modules.Partners.Contracts;
@@ -13,7 +14,6 @@ internal static class PartnerEndpoints
     /// a client code, and a partner secret is a minting credential.
     /// </summary>
     public const string AuthRateLimitPolicy = "partner-auth";
-    public const string MintRateLimitPolicy = "partner-mint";
 
     public static IEndpointRouteBuilder MapPartnerEndpoints(this IEndpointRouteBuilder app)
     {
@@ -117,12 +117,12 @@ internal static class PartnerEndpoints
                 "principal and cannot be supplied by the caller. The response returns the " +
                 "buyer claim URL and PIN and must never be cached or logged.")
             .RequireAuthorization()
-            .RequireRateLimiting(MintRateLimitPolicy)
             .Produces<MintedPartnerEpinApiResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return app;
     }
@@ -188,11 +188,35 @@ internal static class PartnerEndpoints
     private static async Task<IResult> MintGiftCardAsync(
         [FromBody] IssueGiftCardApiRequest request,
         IPartnerEpinService service,
+        IPartnerMintQuota quota,
+        IExecutionContext executionContext,
         HttpResponse response,
         CancellationToken cancellationToken)
     {
         response.Headers.CacheControl = "no-store";
         response.Headers.Pragma = "no-cache";
+        var partnerClientId = executionContext.PartnerClientId;
+        if (partnerClientId is null)
+        {
+            return Results.Forbid();
+        }
+
+        var lease = await quota
+            .TryAcquireAsync(partnerClientId.Value, cancellationToken)
+            .ConfigureAwait(false);
+        if (!lease.Acquired)
+        {
+            response.Headers.RetryAfter = lease.RetryAfterSeconds.ToString(
+                System.Globalization.CultureInfo.InvariantCulture);
+            return Results.Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Too many requests.",
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = "partner.mint.rate_limit_exceeded",
+                });
+        }
+
         var result = await service.MintAsync(
             new MintPartnerEpinRequest(
                 new IssueGiftCardRequest(

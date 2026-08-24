@@ -95,3 +95,29 @@ internal sealed class PartnerApiClientConfiguration : IEntityTypeConfiguration<P
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+internal sealed class PartnerMintRateWindowConfiguration :
+    IEntityTypeConfiguration<PartnerMintRateWindow>
+{
+    public void Configure(EntityTypeBuilder<PartnerMintRateWindow> builder)
+    {
+        builder.ToTable("mint_rate_windows", PartnersDbContext.Schema, table =>
+        {
+            table.HasCheckConstraint(
+                "ck_partner_mint_rate_windows_request_count",
+                "request_count > 0");
+        });
+
+        builder.HasKey(window => window.PartnerApiClientId);
+        builder.Property(window => window.PartnerApiClientId)
+            .HasColumnName("partner_api_client_id");
+        builder.Property(window => window.WindowStartedAtUtc)
+            .HasColumnName("window_started_at_utc");
+        builder.Property(window => window.RequestCount)
+            .HasColumnName("request_count");
+        builder.HasOne<PartnerApiClient>()
+            .WithMany()
+            .HasForeignKey(window => window.PartnerApiClientId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

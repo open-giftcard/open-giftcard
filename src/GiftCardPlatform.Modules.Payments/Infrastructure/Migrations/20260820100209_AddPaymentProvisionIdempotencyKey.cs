@@ -26,9 +26,13 @@ namespace GiftCardPlatform.Modules.Payments.Infrastructure.Migrations
             // till call this attempt": nothing, because it could not yet.
             migrationBuilder.Sql(
                 """
+                select set_config('app.is_platform_operator', 'true', true);
+
                 UPDATE payments.payment_provisions
                 SET idempotency_key = id::text
                 WHERE idempotency_key = '';
+
+                select set_config('app.is_platform_operator', 'false', true);
                 """);
 
             migrationBuilder.CreateIndex(

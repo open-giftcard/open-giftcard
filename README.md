@@ -31,6 +31,11 @@ client-to-backend compatibility.
 Nothing here has been deployed anywhere. See "What is not done" below, and the
 honest gap list in `SECURITY.md`.
 
+The working gate for the first four-repository public candidate is
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md). It records required source,
+deployment, operator, recovery, and human evidence without treating a target
+version as a completed release.
+
 ### What works
 
 **Foundation.** Global identities with email or E.164 phone login, password
@@ -82,16 +87,20 @@ This is not deployable, and the gaps are deliberate rather than unknown:
   Production requires a KMS/HSM signer and immutable WORM storage; the seams
   exist and the adapters do not. Non-Development configuration refuses to enable
   checkpointing rather than silently using local keys.
-- **SMS.** No provider adapter. A phone-channel message dead-letters with
-  `notification.channel.unconfigured` rather than retrying forever.
-- **Deployment and operations.** No container images, migration job, TLS, DNS,
-  ingress, central logging, metrics, backups, or restore drill.
+- **SMS.** No provider adapter. Outside Development, phone distribution, direct
+  sharing, and bulk acceptance fail with `notification.channel.unconfigured`
+  before business state is committed.
+- **Deployment and operations.** A backend Dockerfile and migration entry point
+  exist, but no immutable images are published and there is no certified TLS,
+  DNS, ingress, central logging, metrics, or staging recovery drill. A guarded
+  native-PostgreSQL recovery drill is available for local/operator evidence.
 - **Staging certification.** Never deployed anywhere.
 - **POS counter application.** The `open-giftcard-pos` repository holds a
   demonstration till against the backend payment APIs. It is not retail
   software: the basket is a fixed mock, it carries no contract pin, and no
-  real counter-device journey has been demonstrated. It is deliberately
-  outside the synchronized release candidates.
+  automated live-backend smoke journey now covers readiness, device
+  authentication, payment, reporting, and refund. Physical counter-device and
+  human browser certification remain outstanding.
 
 Deployment gates are summarised under *What is not done* above. The full
 deployment guide is part of the documentation still to be published.
@@ -326,6 +335,8 @@ $env:Authentication__Jwt__SigningKey = "<random development value of at least 32
 $env:Bootstrap__PlatformAdministrator__Secret = "<different random value of at least 32 bytes>"
 $env:Partners__EpinDeliveryKey = "<Base64-encoded random 32-byte value>"
 $env:Partners__ClaimBaseUrl = "http://localhost:5180/epin"
+$env:Partners__MintRateLimit__PermitLimit = "60"
+$env:Partners__MintRateLimit__WindowSeconds = "60"
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 
 dotnet run --project src/GiftCardPlatform.Api
@@ -374,18 +385,23 @@ environment or ignored `.env` files:
 
 ```powershell
 $env:ConnectionStrings__Portal = "Host=localhost;Port=5432;Database=giftcard_portal;Username=giftcard_portal_app;Password=<local password>"
+$env:ConnectionStrings__PortalMigrations = "Host=localhost;Port=5432;Database=giftcard_portal;Username=giftcard_portal_migrator;Password=<local migration password>"
 $env:ConnectionStrings__Cardholder = "Host=localhost;Port=5432;Database=giftcard_cardholder;Username=giftcard_cardholder_app;Password=<local password>"
+$env:ConnectionStrings__CardholderMigrations = "Host=localhost;Port=5432;Database=giftcard_cardholder;Username=giftcard_cardholder_migrator;Password=<local migration password>"
 
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Start-OpenGiftCardLocal.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Test-OpenGiftCardSmoke.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Stop-OpenGiftCardLocal.ps1
 ```
 
-The start command applies pending backend migrations, keeps per-application
-Data Protection keys and logs under ignored `.local/stack`, waits for all five
-HTTP processes, and records only processes it started. It refuses occupied
-ports by default. Pass `-UseExisting` to verify healthy services that are
-already running; the stop command will leave those processes alone.
+The start command applies pending backend, portal, and cardholder migrations,
+keeps per-application Data Protection keys and logs under ignored
+`.local/stack`, waits for all five HTTP processes, and records only processes
+it started. For an old local setup without split client roles, it can use the
+runtime connection as the local migration owner and prints a warning. It
+refuses occupied ports by default. Pass `-UseExisting` to verify healthy
+services that are already running; the stop command will leave those processes
+alone.
 
 The smoke command checks the runtime PostgreSQL role and forced RLS, signs in
 through real API endpoints, reads the seeded tenant and recipient card, creates
@@ -460,8 +476,10 @@ POS secrets, or idempotency keys.
 Direct share activation links default to
 `http://localhost:5180/activate/share`. Set `Sharing__DirectClaimBaseUrl` to the
 cardholder BFF clean-intake route. The Development console captures the
-post-commit notification for local proof; a durable outbox and real email/SMS
-provider remain required before staging or pilot delivery.
+durable outbox delivery for local proof. SMTP is the reference email adapter.
+Without a sender for the requested channel, new work is refused before commit;
+a real SMS provider remains required before phone delivery can be enabled in a
+staging or pilot environment.
 
 Behind a BFF or reverse proxy, configure each immediate trusted proxy as a
 literal IP address under `Networking:ForwardedHeaders:KnownProxies`, for example
@@ -470,6 +488,51 @@ honors one `X-Forwarded-For` address before applying source-IP rate limits. The
 proxy must overwrite that header from its observed client connection and must
 not append or relay a browser-supplied value. With no allowlist, forwarded
 addresses are ignored and the direct remote address remains authoritative.
+
+Partner mint velocity is enforced separately by a PostgreSQL fixed window keyed
+to the authenticated partner client. `Partners__MintRateLimit__PermitLimit` and
+`Partners__MintRateLimit__WindowSeconds` configure the shared budget. Database
+time, an atomic upsert, and forced RLS keep the cap exact across API replicas and
+hide each client's counter from every other execution context. Keep an
+unauthenticated source-IP limit at the public ingress as a coarse flood control;
+it does not replace the backend's authenticated quota.
+
+Run a database and key-ring recovery drill without Docker using
+`scripts/Test-PostgresRecovery.ps1`. It reads the source database, creates a
+separate database whose name must start with `giftcard_recovery_test_`, restores
+the custom-format backup, compares catalog ownership, RLS and forced-RLS flags,
+row counts, and sequence state, then removes only that guarded restore target.
+Pass every deployed Data Protection key-ring directory through `-KeyRingPath`;
+the drill copies each ring through backup and restore locations and verifies a
+SHA-256 manifest. Use `-KeepRestoreDatabase` or `-KeepArtifacts` only when an
+operator deliberately needs the isolated evidence for investigation.
+
+After applying the candidate migrations to that isolated restore, verify an
+application rollback with `scripts/Test-BackendRollback.ps1`. Supply the current
+and previous published artifact directories, the guarded restore database's
+runtime connection, and the restored backend key ring. The probe starts each
+artifact in Production mode on separate loopback ports and requires
+`/health/ready` from both. Readiness proves schema and key compatibility only.
+Before routing traffic back to an artifact that predates the shared partner mint
+quota or notification-channel guard, enforce equivalent ingress controls or
+disable the affected routes; never trade a deployment incident for a known
+security regression.
+
+Build the coordinated non-Docker release bundle from this repository after all
+four sibling repositories carry the same `RELEASE_COMPATIBILITY.json`:
+
+```powershell
+.\scripts\Build-ReleaseArtifacts.ps1 -NoRestore
+```
+
+The command refuses dirty repositories for a real build. Use `-AllowDirty` only
+for a local rehearsal. It publishes the backend, portal BFF plus compiled web
+client, cardholder, and POS into four versioned ZIP files under
+`.local/release-artifacts`, writes `BUILD_INFO.json`, `ARTIFACTS.json`, and
+`SHA256SUMS`, and rejects missing entry points, mismatched release contracts,
+path traversal, and common secret or key file names. An artifact rehearsal is
+not a public release: final commit pins, SBOMs, provenance, staging evidence,
+and tags are separate gates.
 
 Automatic expiration is enabled by default, polls every 30 seconds, and
 processes at most 50 due cards per batch. Configure it under

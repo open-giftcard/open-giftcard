@@ -132,9 +132,8 @@ else if (builder.Environment.IsDevelopment())
         new CapturingNotificationSender(NotificationChannel.Email));
 }
 
-// SMS has no adapter yet. A phone-channel message therefore dead-letters with
-// notification.channel.unconfigured rather than retrying forever, which is the
-// honest outcome until a provider is chosen.
+// SMS has no adapter yet. Outside Development, channel availability rejects a
+// phone operation before its business transaction commits.
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<INotificationChannelSender>(
@@ -223,10 +222,6 @@ var balanceInquiryPermitLimit =
 // very few; anything more is a brute-force attempt against a minting credential.
 var partnerAuthPermitLimit =
     builder.Configuration.GetValue<int?>("Partners:AuthRateLimit:PermitLimit") ?? 10;
-var partnerMintPermitLimit =
-    builder.Configuration.GetValue<int?>("Partners:MintRateLimit:PermitLimit") ?? 60;
-var partnerMintWindowSeconds =
-    builder.Configuration.GetValue<int?>("Partners:MintRateLimit:WindowSeconds") ?? 60;
 if (loginPermitLimit < 1)
 {
     throw new InvalidOperationException(
@@ -246,16 +241,6 @@ if (partnerAuthPermitLimit < 1)
 {
     throw new InvalidOperationException(
         "Partners:AuthRateLimit:PermitLimit must be greater than zero.");
-}
-if (partnerMintPermitLimit < 1)
-{
-    throw new InvalidOperationException(
-        "Partners:MintRateLimit:PermitLimit must be greater than zero.");
-}
-if (partnerMintWindowSeconds is < 1 or > 3600)
-{
-    throw new InvalidOperationException(
-        "Partners:MintRateLimit:WindowSeconds must be between 1 and 3600.");
 }
 if (paymentPermitLimit < 1)
 {
@@ -310,23 +295,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));
-    options.AddPolicy(PartnerEndpoints.MintRateLimitPolicy, context =>
-    {
-        var executionContext = context.RequestServices
-            .GetRequiredService<IExecutionContext>();
-        var partition = executionContext.PartnerClientId is { } partnerClientId
-            ? $"partner-client:{partnerClientId:N}"
-            : $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partition,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = partnerMintPermitLimit,
-                Window = TimeSpan.FromSeconds(partnerMintWindowSeconds),
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            });
-    });
     options.AddPolicy(PaymentEndpoints.RateLimitPolicy, context =>
     {
         var executionContext = context.RequestServices

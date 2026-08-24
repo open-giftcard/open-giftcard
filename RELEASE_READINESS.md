@@ -1,0 +1,113 @@
+# Deployment-Certified Release Candidate
+
+This is the working gate for the first coordinated public Open Giftcard
+candidate across the backend, portal, cardholder, and POS repositories. The
+target name is `v0.5.0-rc.1`.
+
+The target name is not a release claim. No canonical public repository had a
+remote tag when this audit began on 2026-08-24. Local `v0.2` through `v0.4`
+tags in older working copies point into retained legacy history and are not
+public Open Giftcard releases.
+
+## Certification boundary
+
+The project can certify source, application behavior, published artifacts, and
+a named staging deployment. It cannot certify an operator's TLS termination,
+DNS, infrastructure access, backup retention, incident staffing, KMS, HSM, or
+WORM provider without evidence from that deployment.
+
+Every gate below therefore has one of four states:
+
+- **Source verified:** enforced by committed tests or build automation.
+- **Deployment verified:** exercised against the named staging environment and
+  recorded in the release evidence.
+- **Operator responsibility:** requires named ownership and external evidence.
+- **Blocked:** required work or evidence is missing.
+
+Nothing may be called production-ready while a required row remains blocked.
+Passing CI alone is not deployment certification.
+
+## Audit baseline
+
+The milestone branches started from these public-history commits:
+
+| Component | Canonical repository | Audit baseline | Backend contract pin |
+| --- | --- | --- | --- |
+| Backend | `open-giftcard/open-giftcard` | `f80bab86c63106c9ba4669bedc1850c0dec2a6cb` | Authoritative |
+| Portal | `open-giftcard/open-giftcard-portal` | `71d69546a0e6af4b61ad5e3afddc9ddacbc470f3` | `e7bff3e0d39e1c24b89a6d39612ad5939d87f6e5` |
+| Cardholder | `open-giftcard/open-giftcard-cardholder` | `4fac8a5203f2d5eb9577fd666339ffe02574ca1c` | `e7bff3e0d39e1c24b89a6d39612ad5939d87f6e5` |
+| POS | `open-giftcard/open-giftcard-pos` | `ad902f01185dc5d7375637fa34598751a816c1b7` | `fbf3f7bd27479db66b7e3ae022576fc9db46278a` |
+
+The client pins are deliberately recorded as a gap. A coordinated candidate
+must name one accepted backend commit, capture its exact OpenAPI document, and
+make all three client repositories verify that same commit and SHA-256.
+
+## Release gate
+
+| Area | Required evidence | Current state | Owner |
+| --- | --- | --- | --- |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four repositories carry one compatibility contract and every client accepts backend commit `f80bab8`; final commit evidence is created only after the release set is frozen | Maintainer |
+| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Source verified locally, including 243 unit, 15 architecture, and 385 integration tests | Maintainer and CI |
+| Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified on current branches; must be rerun at final commits | Maintainer and CI |
+| End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; staging evidence missing | Maintainer |
+| Database change control | Separate migration and runtime roles; forward migration; startup against upgraded schema; rollback policy | Local source verified: explicit migrators own DDL; populated upgrade exposed and fixed an RLS-hidden payment backfill plus Windows Event Log masking; current and f80bab8 artifacts both reached readiness on the upgraded isolated restore; staging evidence remains | Maintainer and operator |
+| Multi-instance state | Shared sessions and Data Protection keys; restart and replica handoff tests | Data Protection implemented on milestone baselines; PostgreSQL partner mint quota proved across two API hosts locally; broader staging handoff evidence remains | Maintainer |
+| Abuse controls | Quotas cannot be multiplied by adding API replicas; refusal behavior is tested | Source verified: partner mint quota is atomic, database-timed, RLS isolated, and returns 429 plus Retry-After across two API hosts; ingress flood-control evidence remains | Maintainer and ingress operator |
+| Notification delivery | Accepted channels have a working provider and durable retry; unsupported channels fail before business acceptance | Source verified locally: unsupported phone distribution and async bulk acceptance return 400 before durable work; direct sharing and outbox use the same guard; SMTP staging evidence and an SMS adapter remain | Maintainer and notification operator |
+| Audit custody | Checkpoint signing key outside database administration; immutable witness; restore and verification drill | Provider seams exist; KMS/HSM and WORM adapters are operator integrations with no staging evidence | Security operator |
+| Secrets | No committed secrets; fail-closed configuration; rotation and revocation procedures | Application checks are partial; POS device custody and installation procedure are blocked | Maintainer and operator |
+| Health and observability | Liveness, readiness, structured logs, metrics, alerts, correlation, runbooks | Health and logs exist; metrics, alert rules, and incident evidence are blocked | Maintainer and operator |
+| Backup and recovery | Database plus key-ring backup; timed restoration; restored credential/session verification | Local source verified: backend restore passed in 18.7s with all four key rings; separate portal and cardholder database/key restores passed in 3.0s and 3.1s; ownership, RLS flags, rows, sequences, and SHA-256 manifests matched; staging session evidence remains | Operator |
+| Deployment artifacts | Reproducible, versioned, immutable artifacts for all four applications; provenance and SBOM | Local rehearsal verified: one command produced four versioned ZIPs, identical embedded contracts, commit and dirty-state metadata, SHA-256 manifests, expected entry points, and secret-name rejection; all packaged migrators and processes executed successfully; coordinated CI build and upload are defined; clean CI evidence, SBOMs, and provenance remain | Maintainer and CI |
+| Staging security | HTTPS, forwarded-header trust, secure cookies, CSP, no-store, least-privilege DB roles, dependency and code scanning | Source checks are partial; no named staging environment has been certified | Maintainer, security, and operator |
+| Human acceptance | Portal, cardholder, and POS primary journeys; keyboard, mobile, zoom, reduced motion, screen reader, and visual review | Blocked: automated accessibility exists in browser clients; complete human pass is not recorded | Maintainer and reviewer |
+| Release publication | Clean public histories, signed or protected tags, release notes, compatibility manifest, upgrade and rollback notes | Blocked: canonical repositories have no public tags; rollback needs documented quota and phone-route compensating controls | Maintainer |
+
+## Required structural slices
+
+Complete these in order unless a later finding changes the dependency:
+
+1. **Release contract and evidence format.** The machine-readable four-repo
+   compatibility contract and local/CI verifiers are implemented. Freeze the
+   final commits and generate the non-self-referential evidence manifest before
+   tagging.
+2. **Managed client schema migrations.** Implemented for portal and cardholder:
+   normal startup performs no DDL, explicit checksum-protected migrators use
+   separate owner connections, and the local stack runs them before startup.
+   Record the staging upgrade and rollback evidence before tagging.
+3. **Distributed abuse controls.** The authenticated partner mint quota is now
+   shared in PostgreSQL and locally proved across two API hosts. Record the
+   public-ingress flood-control configuration and staging evidence.
+4. **Channel and custody safety.** Unsupported notification channels now fail
+   before accepting delivery work. Certify SMTP in staging, then define the POS
+   device enrollment, rotation, and retirement boundary.
+5. **Release artifacts.** The coordinated non-Docker builder now emits and
+   validates four versioned artifacts, checksums, build metadata, and the shared
+   manifest. Freeze clean commits, then add SBOMs and CI provenance to the final
+   artifact run.
+6. **Staging and recovery certification.** Deploy the exact candidate, run the
+   automated smoke gate plus manual acceptance, restart replicas, restore the
+   database and key rings, and exercise rollback.
+7. **Public candidate.** Record final commits and evidence, update supported
+   versions, create the four matching tags, and publish release notes.
+
+## Deliberate non-goals for this candidate
+
+- A full retail POS with catalogue, tax, stock, cash drawer, or offline mode.
+- A native cardholder mobile application.
+- A provider-specific cloud stack in the application repositories.
+- Claiming that a source artifact proves an operator's organizational controls.
+
+## Final evidence pack
+
+The final candidate must publish or link:
+
+- the exact four commit SHAs and one backend OpenAPI SHA-256;
+- CI run links and test totals for every repository;
+- artifact names, digests, SBOMs, and provenance;
+- database migration, upgrade, rollback, backup, and restore results;
+- staging URLs or private evidence identifiers without secrets;
+- automated smoke output with credential values removed;
+- manual acceptance sign-off and known limitations;
+- operator ownership for every deployment-responsibility row;
+- the four matching public tag references.

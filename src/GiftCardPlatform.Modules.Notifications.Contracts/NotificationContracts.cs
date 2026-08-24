@@ -83,6 +83,18 @@ public interface INotificationChannelSender
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// The delivery channels this host can actually dispatch. Business operations
+/// use this before commit so an unsupported channel cannot create an activation
+/// credential that no provider can deliver.
+/// </summary>
+public interface INotificationChannelAvailability
+{
+    bool IsAvailable(NotificationChannel channel);
+
+    void RequireAvailable(NotificationChannel channel);
+}
+
 /// <summary>The decrypted message handed to a provider adapter.</summary>
 public sealed record NotificationMessage(
     Guid Id,

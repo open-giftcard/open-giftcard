@@ -72,6 +72,7 @@ public static class NotificationsModuleExtensions
                     NotificationsDbContext.Schema)));
 
         services.AddScoped<INotificationOutbox, NotificationOutbox>();
+        services.AddScoped<INotificationChannelAvailability, NotificationChannelAvailability>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<IDevelopmentNotificationQuery, DevelopmentNotificationQuery>();
         return services;

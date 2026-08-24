@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GiftCardPlatform.Modules.Authorization.Contracts;
 using GiftCardPlatform.Modules.Partners.Contracts;
+using Microsoft.AspNetCore.Hosting;
 using static GiftCardPlatform.IntegrationTests.AuthorizationTestSupport;
 using static GiftCardPlatform.IntegrationTests.MembershipTestSupport;
 
@@ -85,6 +86,79 @@ public sealed class PartnerMintingTests(PlatformApiFixture fixture)
                     command.Parameters.AddWithValue("raw_pin", minted.Pin);
                     command.Parameters.AddWithValue("client_id", client.Client.Id);
                 }));
+    }
+
+    [Fact]
+    public async Task Mint_quota_is_shared_across_api_instances_and_is_rls_isolated()
+    {
+        var (partner, registeredClient) = await RegisterPartnerAndClientAsync();
+        await FundAsync(partner.RootOrganizationId, 30m);
+        using var authenticated = await AuthenticatedClientAsync(registeredClient);
+        var authorization = authenticated.DefaultRequestHeaders.Authorization;
+
+        await using var firstFactory = fixture.Factory.WithWebHostBuilder(webHost =>
+        {
+            webHost.UseSetting("Partners:MintRateLimit:PermitLimit", "2");
+            webHost.UseSetting("Partners:MintRateLimit:WindowSeconds", "3600");
+        });
+        await using var secondFactory = fixture.Factory.WithWebHostBuilder(webHost =>
+        {
+            webHost.UseSetting("Partners:MintRateLimit:PermitLimit", "2");
+            webHost.UseSetting("Partners:MintRateLimit:WindowSeconds", "3600");
+        });
+        using var firstInstance = firstFactory.CreateClient();
+        using var secondInstance = secondFactory.CreateClient();
+        firstInstance.DefaultRequestHeaders.Authorization = authorization;
+        secondInstance.DefaultRequestHeaders.Authorization = authorization;
+
+        var first = await firstInstance.PostAsJsonAsync(MintRoute, NewRequest(10m));
+        var second = await secondInstance.PostAsJsonAsync(MintRoute, NewRequest(10m));
+        var refused = await firstInstance.PostAsJsonAsync(MintRoute, NewRequest(10m));
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        Assert.True(refused.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+        var problem = (await refused.Content.ReadFromJsonAsync<JsonElement>())!;
+        Assert.Equal(
+            "partner.mint.rate_limit_exceeded",
+            problem.GetProperty("code").GetString());
+
+        await using var session = await ScopedSqlSession.OpenAsPlatformAsync(fixture);
+        await using (var security = session.Command(
+            """
+            select c.relrowsecurity,
+                   c.relforcerowsecurity,
+                   r.rolsuper,
+                   r.rolbypassrls
+            from pg_class c
+            join pg_roles r on r.rolname = current_user
+            where c.oid = 'partners.mint_rate_windows'::regclass;
+            """))
+        await using (var reader = await security.ExecuteReaderAsync())
+        {
+            Assert.True(await reader.ReadAsync());
+            Assert.True(reader.GetBoolean(0));
+            Assert.True(reader.GetBoolean(1));
+            Assert.False(reader.GetBoolean(2));
+            Assert.False(reader.GetBoolean(3));
+        }
+        Assert.Equal(
+            0,
+            await session.ScalarCountAsync(
+                "select count(*) from partners.mint_rate_windows;"));
+        await using (var setPartner = session.Command(
+            "select set_config('app.partner_client_id', @client_id, true);"))
+        {
+            setPartner.Parameters.AddWithValue(
+                "client_id",
+                registeredClient.Client.Id.ToString());
+            await setPartner.ExecuteScalarAsync();
+        }
+        Assert.Equal(
+            1,
+            await session.ScalarCountAsync(
+                "select count(*) from partners.mint_rate_windows;"));
     }
 
     [Fact]

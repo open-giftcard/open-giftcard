@@ -5,6 +5,7 @@ using GiftCardPlatform.Modules.Authorization.Contracts;
 using GiftCardPlatform.BuildingBlocks.Execution;
 using GiftCardPlatform.Modules.Distribution.Application;
 using GiftCardPlatform.Modules.Distribution.Contracts;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using static GiftCardPlatform.IntegrationTests.MembershipTestSupport;
@@ -16,6 +17,51 @@ public sealed class BulkGiftCardBatchTests(PlatformApiFixture fixture)
 {
     private static readonly JsonSerializerOptions WebJsonOptions =
         new(JsonSerializerDefaults.Web);
+
+    [Fact]
+    public async Task Async_batch_with_phone_rows_is_rejected_before_acceptance_without_sms()
+    {
+        var organizationId = await CreateOrganizationAsync(fixture);
+        var keysPath = Path.Combine(
+            Path.GetTempPath(),
+            "open-giftcard-channel-tests",
+            Guid.NewGuid().ToString("N"));
+        using var authorized = BatchClient(organizationId);
+        (await authorized.GetAsync("/health")).EnsureSuccessStatusCode();
+        await using var production = fixture.Factory.WithWebHostBuilder(webHost =>
+        {
+            webHost.UseEnvironment("Production");
+            webHost.UseSetting("DataProtection:KeysPath", keysPath);
+        });
+        using var client = production.CreateClient();
+        client.DefaultRequestHeaders.Authorization = authorized.DefaultRequestHeaders.Authorization;
+        client.DefaultRequestHeaders.Add(OrganizationIdHeader, organizationId.ToString());
+
+        try
+        {
+            var response = await client.PostAsJsonAsync(
+                AsyncAcceptRoute(organizationId),
+                Request(
+                    "PHONE-NO-SMS",
+                    "phone-no-sms-" + Guid.NewGuid().ToString("N"),
+                    Item(
+                        "ROW-001",
+                        10m,
+                        RecipientContactType.Phone,
+                        "+905551234567")));
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            await AssertProblemCodeAsync(response, "notification.channel.unconfigured");
+            await AssertNoBulkWorkAsync(organizationId);
+        }
+        finally
+        {
+            if (Directory.Exists(keysPath))
+            {
+                Directory.Delete(keysPath, recursive: true);
+            }
+        }
+    }
 
     [Fact]
     public async Task Async_batch_accepts_fifteen_hundred_durable_rows_before_processing()

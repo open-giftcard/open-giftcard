@@ -16,12 +16,15 @@ internal sealed class PartnersDbContext(
 
     public DbSet<PartnerApiClient> ApiClients => Set<PartnerApiClient>();
 
+    public DbSet<PartnerMintRateWindow> MintRateWindows => Set<PartnerMintRateWindow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.AddTenantDbFunctions();
         modelBuilder.ApplyConfiguration(new PartnerConfiguration());
         modelBuilder.ApplyConfiguration(new PartnerApiClientConfiguration());
+        modelBuilder.ApplyConfiguration(new PartnerMintRateWindowConfiguration());
 
         // Mirrors the tenant half of the RLS policies in the initial migration.
         // RLS remains the authoritative barrier; these filters are ergonomics and
