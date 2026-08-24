@@ -125,7 +125,10 @@ Compose brings up three services in order. PostgreSQL creates the two
 application roles and the twelve schemas from `infra/postgres/init`. A
 migrations container then applies every module's schema as the migration owner
 and exits. Only then does the API start, as the runtime role, which owns nothing
-and cannot alter its own schema (ADR-019).
+and cannot alter its own schema (ADR-019). Compose also mounts the
+`giftcard-dataprotection` named volume at the API's explicit key path. The
+non-root runtime user owns that path, so queued notification credentials remain
+decryptable across container replacement without granting root privileges.
 
 The API is published on `http://localhost:5143`; `GET /health/ready` reports
 when it is serving. Set `DEMO_SEED=true` in `.env` to build a demonstration
@@ -667,11 +670,11 @@ Do these once, or the journey stalls half way and it is not obvious why:
 1. **Enable SMTP** (step 4 above). Without it, activation links are queued but
    never sent, and you have to read them out of the demo console instead of an
    inbox. That still works, but it is far less convincing to watch.
-2. **Keep the Data Protection key ring.** Development stores it under
-   `.local/dataprotection-keys`, which is ignored by Git. Deleting that directory
-   makes previously queued notification payloads unreadable. Non-Development
-   startup requires an explicit durable `DataProtection:KeysPath` shared by all
-   API instances.
+2. **Keep the Data Protection key ring.** Native Development stores it under
+   `.local/dataprotection-keys`, which is ignored by Git; Compose uses its
+   `giftcard-dataprotection` named volume. Deleting either store makes previously
+   queued notification payloads unreadable. Non-Development startup requires an
+   explicit durable `DataProtection:KeysPath` shared by all API instances.
 3. **Have two browser profiles or a private window ready.** The staff session and
    the recipient session are different identities; sharing one browser means
    logging in and out repeatedly in front of an audience.

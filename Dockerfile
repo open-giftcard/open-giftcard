@@ -35,6 +35,13 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /app ./
 
+# Seed the named Data Protection volume with ownership for the non-root runtime
+# user. Docker copies this directory metadata into a new named volume on first
+# use, so the API can create and rotate keys without broadening container
+# privileges.
+RUN mkdir -p /var/lib/open-giftcard/dataprotection-keys \
+    && chown -R $APP_UID /var/lib/open-giftcard
+
 # Runs as a non-root user. The database roles are separately non-superuser and
 # NOBYPASSRLS; this is the container-level half of the same idea.
 USER $APP_UID

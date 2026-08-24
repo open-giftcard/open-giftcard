@@ -68,11 +68,14 @@ services:
       Bootstrap__PlatformAdministrator__Secret: ${Bootstrap__PlatformAdministrator__Secret:?set Bootstrap__PlatformAdministrator__Secret in .env}
       Partners__EpinDeliveryKey: ${Partners__EpinDeliveryKey:?set Partners__EpinDeliveryKey in .env}
       Partners__ClaimBaseUrl: ${Partners__ClaimBaseUrl:-http://localhost:5180/epin}
+      DataProtection__KeysPath: /var/lib/open-giftcard/dataprotection-keys
       # Off by default. Set DEMO_SEED=true in .env to build the demonstration
       # tenant on first start. Development only; see src/GiftCardPlatform.Api/Demo.
       Demo__Seed__Enabled: ${DEMO_SEED:-false}
     ports:
       - "${API_PORT:-5143}:8080"
+    volumes:
+      - giftcard-dataprotection:/var/lib/open-giftcard/dataprotection-keys
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health/ready > /dev/null || exit 1"]
       interval: 5s
@@ -83,3 +86,4 @@ services:
 
 volumes:
   giftcard-pgdata:
+  giftcard-dataprotection:
