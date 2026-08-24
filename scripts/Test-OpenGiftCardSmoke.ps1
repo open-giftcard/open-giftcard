@@ -50,6 +50,25 @@ function Get-StreamSha256([IO.Stream]$Stream) {
     }
 }
 
+function Get-StreamPortableTextSha256([IO.Stream]$Stream) {
+    $reader = [IO.StreamReader]::new($Stream)
+    try {
+        $text = $reader.ReadToEnd().Replace("`r`n", "`n").Replace("`r", "`n")
+    }
+    finally {
+        $reader.Dispose()
+    }
+
+    $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 function Read-ArchiveJson {
     param(
         [Parameter(Mandatory)][IO.Compression.ZipArchive]$Archive,
@@ -149,7 +168,7 @@ function Get-ArtifactSetEvidence {
             }
             $contractStream = $contractEntry.Open()
             try {
-                $contractHash = Get-StreamSha256 $contractStream
+                $contractHash = Get-StreamPortableTextSha256 $contractStream
             }
             finally {
                 $contractStream.Dispose()

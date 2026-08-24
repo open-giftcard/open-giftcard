@@ -14,6 +14,18 @@ $ErrorActionPreference = 'Stop'
 $backendRoot = Split-Path -Parent $PSScriptRoot
 $workspaceRoot = Split-Path -Parent $backendRoot
 
+function Get-PortableTextSha256([string]$Path) {
+    $text = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($PortalRoot)) {
     $PortalRoot = Join-Path $workspaceRoot 'open-giftcard-portal'
 }
@@ -44,7 +56,7 @@ foreach ($member in $members) {
         throw "$($member.Repository) has no release contract verifier."
     }
 
-    $manifestHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash
+    $manifestHash = Get-PortableTextSha256 $manifestPath
     if ($null -eq $expectedHash) {
         $expectedHash = $manifestHash
     }

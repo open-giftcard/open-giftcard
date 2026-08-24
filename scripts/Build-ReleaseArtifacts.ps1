@@ -75,6 +75,28 @@ function Get-StreamSha256([IO.Stream]$Stream) {
     }
 }
 
+function Get-PortableTextSha256([string]$Content) {
+    $normalized = $Content.Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.Encoding]::UTF8.GetBytes($normalized)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
+function Get-StreamPortableTextSha256([IO.Stream]$Stream) {
+    $reader = [IO.StreamReader]::new($Stream)
+    try {
+        return Get-PortableTextSha256 ($reader.ReadToEnd())
+    }
+    finally {
+        $reader.Dispose()
+    }
+}
+
 function Read-ZipJson(
     [IO.Compression.ZipArchive]$Archive,
     [string]$EntryName
@@ -173,7 +195,7 @@ function Test-ReleaseArchive(
         }
         $contractStream = $contractEntry.Open()
         try {
-            $contractHash = Get-StreamSha256 $contractStream
+            $contractHash = Get-StreamPortableTextSha256 $contractStream
         }
         finally {
             $contractStream.Dispose()
@@ -238,9 +260,9 @@ $version = [string]$contract.release
 if ($version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
     throw "Release version '$version' is not a supported semantic version."
 }
-$contractHash = (Get-FileHash -LiteralPath `
-    (Join-Path $backendRoot 'RELEASE_COMPATIBILITY.json') `
-    -Algorithm SHA256).Hash
+$contractPath = Join-Path $backendRoot 'RELEASE_COMPATIBILITY.json'
+$contractText = [IO.File]::ReadAllText($contractPath)
+$contractHash = Get-PortableTextSha256 $contractText
 
 $buildInfo = [ordered]@{}
 foreach ($entry in $repos.GetEnumerator()) {
@@ -303,8 +325,12 @@ try {
         Invoke-Checked 'dotnet' $arguments $repoRoot
 
         Copy-Item -LiteralPath $publishPath -Destination (Join-Path $bundlePath 'app') -Recurse
-        Copy-Item -LiteralPath (Join-Path $repoRoot 'RELEASE_COMPATIBILITY.json') `
-            -Destination $bundlePath
+        $releaseContract = [IO.File]::ReadAllText(
+            (Join-Path $repoRoot 'RELEASE_COMPATIBILITY.json'))
+        $releaseContract = $releaseContract.Replace("`r`n", "`n").Replace("`r", "`n")
+        Write-Utf8NoBom `
+            (Join-Path $bundlePath 'RELEASE_COMPATIBILITY.json') `
+            $releaseContract
         foreach ($document in @('README.md', 'LICENSE', 'SECURITY.md')) {
             $source = Join-Path $repoRoot $document
             if (Test-Path -LiteralPath $source -PathType Leaf) {
