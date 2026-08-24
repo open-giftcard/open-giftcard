@@ -35,6 +35,12 @@ jobs:
         shell: pwsh
         run: ./scripts/Test-StagingAcceptanceRecord.ps1
 
+      - name: Observability contract
+        shell: pwsh
+        run: |
+          ./scripts/Test-ObservabilityContract.ps1
+          ./scripts/Test-ObservabilityEvidence.ps1
+
       # Resolved from global.json so CI uses the same SDK family as local
       # development, rather than whatever happens to be latest on the runner.
       - name: Set up .NET

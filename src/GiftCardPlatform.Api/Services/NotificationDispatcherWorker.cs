@@ -15,6 +15,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed partial class NotificationDispatcherWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<NotificationOptions> options,
+    PlatformMetrics metrics,
     ILogger<NotificationDispatcherWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, int, int, int, Exception?> BatchCompleted =
@@ -60,7 +61,20 @@ internal sealed partial class NotificationDispatcherWorker(
                         result.Retrying,
                         result.DeadLettered,
                         null);
+                    metrics.RecordWorkerItems(
+                        "notification_dispatch",
+                        "delivered",
+                        result.Delivered);
+                    metrics.RecordWorkerItems(
+                        "notification_dispatch",
+                        "retrying",
+                        result.Retrying);
+                    metrics.RecordWorkerItems(
+                        "notification_dispatch",
+                        "dead_lettered",
+                        result.DeadLettered);
                 }
+                metrics.RecordWorkerRun("notification_dispatch", "succeeded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -68,6 +82,7 @@ internal sealed partial class NotificationDispatcherWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("notification_dispatch", "failed");
                 BatchFailed(logger, exception);
             }
 

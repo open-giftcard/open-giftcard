@@ -8,6 +8,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed class GiftCardExpirationWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<GiftCardExpirationOptions> options,
+    PlatformMetrics metrics,
     ILogger<GiftCardExpirationWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, int, int, int, Exception?> BatchCompleted =
@@ -55,7 +56,16 @@ internal sealed class GiftCardExpirationWorker(
                         result.Expired,
                         result.Conflicted,
                         null);
+                    metrics.RecordWorkerItems(
+                        "gift_card_expiration",
+                        "expired",
+                        result.Expired);
+                    metrics.RecordWorkerItems(
+                        "gift_card_expiration",
+                        "conflicted",
+                        result.Conflicted);
                 }
+                metrics.RecordWorkerRun("gift_card_expiration", "succeeded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -63,6 +73,7 @@ internal sealed class GiftCardExpirationWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("gift_card_expiration", "failed");
                 BatchFailed(logger, exception);
             }
 

@@ -93,7 +93,8 @@ This is not deployment-certified, and the remaining gaps are explicit:
 - **Deployment and operations.** Coordinated versioned non-Docker archives,
   explicit migrators, SBOMs, checksums, recovery and rollback drills, and an
   automated staging evidence gate exist. No named environment has yet supplied
-  certified TLS, DNS, ingress, central logging, metrics, or recovery evidence.
+  certified TLS, DNS, ingress, central logging, central metrics, or recovery
+  evidence.
 - **Staging certification.** Never deployed anywhere.
 - **POS counter application.** The `open-giftcard-pos` repository holds a
   demonstration till against the pinned backend payment contract. It is not
@@ -467,6 +468,15 @@ recovery, and operations checks. Approval is refused when a check is failed or
 not run, a blocking issue remains, or the review asks to approve a different
 environment. The checksum-protected result records evidence references and
 owners, not credentials or secret values.
+
+The backend also has an opt-in stable OTLP HTTP/protobuf metrics path and six
+release-critical Prometheus-compatible alerts for missing telemetry,
+readiness, 5xx rate, p95 latency, repeated worker failure, and audit
+verification failure. The operator contract and alert rules are under
+`monitoring/`. After the smoke gate has generated traffic on every replica, run
+`scripts/Test-OpenGiftCardObservability.ps1` against the named metrics API. It
+binds a redacted checksum-protected observability record to the deployed
+`ARTIFACTS.json`; details are in `docs/DEPLOYMENT.md`.
 
 Use the port printed by `dotnet run`. `/demo` is the responsive development console:
 it guides bootstrap/login, customer onboarding, initial Company Administrator

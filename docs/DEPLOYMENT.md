@@ -37,6 +37,10 @@ Partners__AuthRateLimit__PermitLimit=10
 Partners__MintRateLimit__PermitLimit=<approved-per-client-window-count>
 Partners__MintRateLimit__WindowSeconds=60
 
+Observability__Metrics__Enabled=true
+Observability__Metrics__OtlpEndpoint=https://collector.<staging-domain>
+Observability__Metrics__ExportIntervalSeconds=15
+
 Networking__ForwardedHeaders__KnownProxies__0=<literal-portal-bff-ip>
 Networking__ForwardedHeaders__KnownProxies__1=<literal-cardholder-bff-ip>
 ```
@@ -273,6 +277,30 @@ The administrator password is prompted and is not written to a file.
 * JSON request logs include the server-generated correlation ID, authenticated
   user, verified organization context, path, outcome, and duration. Audit rows
   remain the durable business/security record; logs are operational evidence.
+* OTLP HTTP/protobuf exports readiness, non-probe HTTP request count/duration,
+  bounded worker outcomes, and audit verification failures. It is disabled by
+  default until the operator supplies a collector. The metric labels never
+  contain tenant, organization, user, card, email, token, or credential data.
+
+Use the collector and Prometheus-compatible rule-engine contract in
+`monitoring/README.md`, and load `monitoring/open-giftcard-alerts.yml`. After
+the artifact-bound smoke has exercised every replica, create separate
+checksum-protected observability evidence:
+
+```powershell
+$env:OPEN_GIFTCARD_OBSERVABILITY_TOKEN = '<read-only metrics API token>'
+./scripts/Test-OpenGiftCardObservability.ps1 `
+  -MetricsBaseUrl 'https://metrics.<staging-domain>' `
+  -EnvironmentName 'staging-rc1' `
+  -ArtifactManifestPath '<verified-download>\ARTIFACTS.json' `
+  -ExpectedBackendInstances 2 `
+  -EvidencePath '<new-evidence-directory>\observability.json'
+Remove-Item Env:OPEN_GIFTCARD_OBSERVABILITY_TOKEN
+```
+
+This gate verifies replica metric streams, current readiness, traffic and
+worker metrics, all six loaded alert rules, rule health, and that none of the
+release-critical rules is firing. Its output never includes the bearer token.
 
 Before promotion:
 
@@ -289,6 +317,9 @@ Before promotion:
 6. When managed checkpoint adapters are supplied, verify one signed manifest in
    WORM storage independently with the recorded public key, then test the alert
    path for a missing or changed witness object.
+7. Trigger each alert safely in staging or through the rule engine's test path,
+   verify routing to its named owner, and record the incident reference. The
+   query gate proves rules are loaded and quiet, not that paging delivery works.
 
 Run the automated deployment gate from an operator host that can reach the five
 public application endpoints and PostgreSQL using the backend runtime role. Put

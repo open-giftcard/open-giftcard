@@ -1,0 +1,75 @@
+groups:
+  - name: open-giftcard-backend-release-critical
+    rules:
+      - alert: OpenGiftcardBackendTelemetryMissing
+        expr: absent_over_time(open_giftcard_readiness[2m])
+        for: 2m
+        labels:
+          severity: critical
+          service: open-giftcard-backend
+        annotations:
+          summary: Open Giftcard backend telemetry is missing
+          description: No backend readiness metric has reached the metrics store for two minutes.
+
+      - alert: OpenGiftcardBackendNotReady
+        expr: min(open_giftcard_readiness) < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: open-giftcard-backend
+        annotations:
+          summary: An Open Giftcard backend instance is not ready
+          description: At least one reporting backend instance has failed readiness for five minutes.
+
+      - alert: OpenGiftcardBackendHighErrorRate
+        expr: |
+          sum(rate(open_giftcard_http_server_requests_total{status_class="5xx"}[5m]))
+            /
+          clamp_min(sum(rate(open_giftcard_http_server_requests_total[5m])), 0.001)
+            > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          service: open-giftcard-backend
+        annotations:
+          summary: Open Giftcard backend 5xx rate is above five percent
+          description: The non-probe HTTP 5xx ratio has remained above five percent for ten minutes.
+
+      - alert: OpenGiftcardBackendHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(open_giftcard_http_server_duration_seconds_bucket[5m])
+            )
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+          service: open-giftcard-backend
+        annotations:
+          summary: Open Giftcard backend latency is high
+          description: The non-probe HTTP p95 duration has remained above 1.5 seconds for ten minutes.
+
+      - alert: OpenGiftcardWorkerRepeatedFailures
+        expr: |
+          sum by (worker) (
+            increase(open_giftcard_worker_runs_total{outcome="failed"}[15m])
+          ) >= 3
+        for: 5m
+        labels:
+          severity: critical
+          service: open-giftcard-backend
+        annotations:
+          summary: An Open Giftcard background worker is repeatedly failing
+          description: Worker {{ $labels.worker }} has failed at least three times in fifteen minutes.
+
+      - alert: OpenGiftcardAuditVerificationFailure
+        expr: max(open_giftcard_audit_verification_failure) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: open-giftcard-backend
+        annotations:
+          summary: Open Giftcard audit verification failed
+          description: Audit checkpoint verification reported a failure. Treat this as a security incident.

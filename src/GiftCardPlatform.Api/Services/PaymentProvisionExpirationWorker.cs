@@ -13,6 +13,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed partial class PaymentProvisionExpirationWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<PaymentProvisionOptions> options,
+    PlatformMetrics metrics,
     ILogger<PaymentProvisionExpirationWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, int, Exception?> BatchCompleted =
@@ -52,7 +53,12 @@ internal sealed partial class PaymentProvisionExpirationWorker(
                 if (result.Expired > 0)
                 {
                     BatchCompleted(logger, result.Expired, null);
+                    metrics.RecordWorkerItems(
+                        "payment_provision_expiration",
+                        "expired",
+                        result.Expired);
                 }
+                metrics.RecordWorkerRun("payment_provision_expiration", "succeeded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -60,6 +66,7 @@ internal sealed partial class PaymentProvisionExpirationWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("payment_provision_expiration", "failed");
                 BatchFailed(logger, exception);
             }
 

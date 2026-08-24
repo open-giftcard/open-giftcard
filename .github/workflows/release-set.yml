@@ -8,12 +8,16 @@ on:
       - ".github/workflows/release-set.yml"
       - "docs/DEPLOYMENT.md"
       - "LICENSE"
+      - "monitoring/**"
       - "README.md"
       - "RELEASE_COMPATIBILITY.json"
       - "RELEASE_READINESS.md"
       - "SECURITY.md"
       - "scripts/Build-ReleaseArtifacts.ps1"
       - "scripts/New-StagingAcceptanceRecord.ps1"
+      - "scripts/Test-ObservabilityContract.ps1"
+      - "scripts/Test-ObservabilityEvidence.ps1"
+      - "scripts/Test-OpenGiftCardObservability.ps1"
       - "scripts/Test-OpenGiftCardSmoke.ps1"
       - "scripts/Test-ReleaseContract.ps1"
       - "scripts/Test-ReleaseSet.ps1"
@@ -24,12 +28,16 @@ on:
       - ".github/workflows/release-set.yml"
       - "docs/DEPLOYMENT.md"
       - "LICENSE"
+      - "monitoring/**"
       - "README.md"
       - "RELEASE_COMPATIBILITY.json"
       - "RELEASE_READINESS.md"
       - "SECURITY.md"
       - "scripts/Build-ReleaseArtifacts.ps1"
       - "scripts/New-StagingAcceptanceRecord.ps1"
+      - "scripts/Test-ObservabilityContract.ps1"
+      - "scripts/Test-ObservabilityEvidence.ps1"
+      - "scripts/Test-OpenGiftCardObservability.ps1"
       - "scripts/Test-OpenGiftCardSmoke.ps1"
       - "scripts/Test-ReleaseContract.ps1"
       - "scripts/Test-ReleaseSet.ps1"
@@ -95,6 +103,12 @@ jobs:
       - name: Verify staging acceptance evidence contract
         shell: pwsh
         run: ./release-set/open-giftcard/scripts/Test-StagingAcceptanceRecord.ps1
+
+      - name: Verify observability contract
+        shell: pwsh
+        run: |
+          ./release-set/open-giftcard/scripts/Test-ObservabilityContract.ps1
+          ./release-set/open-giftcard/scripts/Test-ObservabilityEvidence.ps1
 
       - name: Set up .NET
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4

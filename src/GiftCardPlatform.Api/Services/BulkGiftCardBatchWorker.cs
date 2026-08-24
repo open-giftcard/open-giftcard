@@ -7,6 +7,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed class BulkGiftCardBatchWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<BulkGiftCardBatchOptions> options,
+    PlatformMetrics metrics,
     ILogger<BulkGiftCardBatchWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, int, int, int, int, Exception?> ChunkCompleted =
@@ -69,7 +70,20 @@ internal sealed class BulkGiftCardBatchWorker(
                         failed,
                         conflicted,
                         null);
+                    metrics.RecordWorkerItems(
+                        "bulk_gift_card_batch",
+                        "succeeded",
+                        succeeded);
+                    metrics.RecordWorkerItems(
+                        "bulk_gift_card_batch",
+                        "failed",
+                        failed);
+                    metrics.RecordWorkerItems(
+                        "bulk_gift_card_batch",
+                        "conflicted",
+                        conflicted);
                 }
+                metrics.RecordWorkerRun("bulk_gift_card_batch", "succeeded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -77,6 +91,7 @@ internal sealed class BulkGiftCardBatchWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("bulk_gift_card_batch", "failed");
                 ChunkFailed(logger, exception);
             }
 

@@ -88,6 +88,10 @@ builder.Services.AddSharingModule(builder.Configuration);
 builder.Services.AddPaymentsModule(builder.Configuration);
 builder.Services.AddPartnersModule(builder.Configuration);
 builder.Services.AddNotificationsModule(builder.Configuration);
+ObservabilityConfiguration.Configure(
+    builder.Services,
+    builder.Configuration,
+    builder.Environment);
 
 // Readiness compares the applied migrations against this build. Singleton
 // because a confirmed-current schema is cached for the process lifetime.
@@ -389,8 +393,6 @@ if (knownProxyAddresses.Length > 0)
     app.UseForwardedHeaders();
 }
 
-app.UseExceptionHandler();
-
 // Seed the correlation id before authentication populates the identity, so even
 // anonymous and failed requests are traceable.
 //
@@ -419,6 +421,7 @@ app.Use(async (context, next) =>
     // M3). Health probes are excluded to keep the signal readable.
     var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
         .CreateLogger("GiftCardPlatform.Api.Request");
+    var metrics = context.RequestServices.GetRequiredService<PlatformMetrics>();
 
     using var scope = logger.BeginScope(new Dictionary<string, object>
     {
@@ -432,6 +435,14 @@ app.Use(async (context, next) =>
 
     if (!isProbe)
     {
+        var route = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText
+            ?? "unmatched";
+        metrics.RecordHttpRequest(
+            context.Request.Method,
+            route,
+            context.Response.StatusCode,
+            Stopwatch.GetElapsedTime(started));
+
         // CA1873: the analyzer cannot see that the argument expressions are
         // already behind the IsEnabled guard below, so they are only evaluated
         // when the log will actually be written.
@@ -451,6 +462,10 @@ app.Use(async (context, next) =>
 #pragma warning restore CA1873
     }
 });
+
+// Keep the exception handler inside the correlation, request-log, and metrics
+// middleware so handled errors are recorded with their final response status.
+app.UseExceptionHandler();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -497,6 +512,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 app.MapGet("/health/ready", async (
     ScopedDatabaseConnection database,
     SchemaReadiness schema,
+    PlatformMetrics metrics,
     CancellationToken cancellationToken) =>
 {
     try
@@ -512,15 +528,18 @@ app.MapGet("/health/ready", async (
         var behind = await schema.GetModulesBehindAsync(cancellationToken);
         if (behind.Count > 0)
         {
+            metrics.SetReadiness(false);
             return Results.Json(
                 new { status = "migrations-pending", modules = behind },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
+        metrics.SetReadiness(true);
         return Results.Ok(new { status = "ready" });
     }
     catch (NpgsqlException)
     {
+        metrics.SetReadiness(false);
         // Deliberately does not echo the connection error: it can contain host
         // and credential detail, and this endpoint is unauthenticated.
         return Results.Json(

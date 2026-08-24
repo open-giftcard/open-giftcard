@@ -7,6 +7,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed class ShareExpirationWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<SharingOptions> options,
+    PlatformMetrics metrics,
     ILogger<ShareExpirationWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, int, Exception?> BatchCompleted =
@@ -45,7 +46,9 @@ internal sealed class ShareExpirationWorker(
                 if (expired > 0)
                 {
                     BatchCompleted(logger, expired, null);
+                    metrics.RecordWorkerItems("share_expiration", "expired", expired);
                 }
+                metrics.RecordWorkerRun("share_expiration", "succeeded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -53,6 +56,7 @@ internal sealed class ShareExpirationWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("share_expiration", "failed");
                 BatchFailed(logger, exception);
             }
 

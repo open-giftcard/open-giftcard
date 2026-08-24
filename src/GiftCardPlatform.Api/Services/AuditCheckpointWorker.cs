@@ -7,6 +7,7 @@ namespace GiftCardPlatform.Api.Services;
 internal sealed partial class AuditCheckpointWorker(
     IServiceScopeFactory scopeFactory,
     IOptions<AuditCheckpointOptions> options,
+    PlatformMetrics metrics,
     ILogger<AuditCheckpointWorker> logger) : BackgroundService
 {
     private static readonly Action<ILogger, Exception?> PassFailed =
@@ -70,8 +71,12 @@ internal sealed partial class AuditCheckpointWorker(
                     .VerifyAsync(stoppingToken).ConfigureAwait(false);
                 if (!verification.IsValid)
                 {
+                    metrics.RecordAuditVerificationFailure();
                     VerificationFailed(logger, verification.FailureCode ?? "unknown", null);
                 }
+                metrics.RecordWorkerRun(
+                    "audit_checkpoint",
+                    verification.IsValid ? "succeeded" : "degraded");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -79,6 +84,7 @@ internal sealed partial class AuditCheckpointWorker(
             }
             catch (Exception exception)
             {
+                metrics.RecordWorkerRun("audit_checkpoint", "failed");
                 PassFailed(logger, exception);
             }
 

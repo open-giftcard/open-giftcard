@@ -179,9 +179,12 @@ function Test-ReleaseArchive(
             foreach ($operatorFile in @(
                 'DEPLOYMENT.md',
                 'scripts/OpenGiftCardLocal.Common.ps1',
+                'monitoring/README.md',
+                'monitoring/open-giftcard-alerts.yml',
                 'scripts/New-StagingAcceptanceRecord.ps1',
                 'STAGING_ACCEPTANCE.example.json',
                 'scripts/Test-BackendRollback.ps1',
+                'scripts/Test-OpenGiftCardObservability.ps1',
                 'scripts/Test-OpenGiftCardSmoke.ps1',
                 'scripts/Test-PostgresRecovery.ps1')) {
                 if ($null -eq $archive.GetEntry("$expectedRoot/$operatorFile")) {
@@ -351,6 +354,7 @@ try {
                 'OpenGiftCardLocal.Common.ps1',
                 'New-StagingAcceptanceRecord.ps1',
                 'Test-BackendRollback.ps1',
+                'Test-OpenGiftCardObservability.ps1',
                 'Test-OpenGiftCardSmoke.ps1',
                 'Test-PostgresRecovery.ps1')) {
                 Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\$operatorScript") `
@@ -358,6 +362,8 @@ try {
             }
             Copy-Item -LiteralPath (Join-Path $repoRoot 'STAGING_ACCEPTANCE.example.json') `
                 -Destination $bundlePath
+            Copy-Item -LiteralPath (Join-Path $repoRoot 'monitoring') `
+                -Destination $bundlePath -Recurse
         }
 
         $componentInfo = [ordered]@{
