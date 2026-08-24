@@ -43,13 +43,13 @@ non-self-referential release metadata:
 
 | Component | Frozen implementation commit |
 | --- | --- |
-| Backend | `56c73c689e41aea6073a73db2e575f8f479bc6c2` |
+| Backend | `90c7dd2a17a6eb4ea686fc344de25f3a1a155d12` |
 | Portal | `837dd91286951ef71ffe7a5992860272e1151e3c` |
 | Cardholder | `6afd8b87ea261a1cf389845dc4488d4e10eaeac2` |
 | POS | `4531ec0c602599cb6d4ff3643f9dbf01a2278360` |
 
 The accepted backend commit serves OpenAPI SHA-256
-`A5137EFD65B6CB9927419C26CA8BE0A1873C34FE47F4CC22B3C66BCA3549B6C1`.
+`EC8051EBC7F65007DB8BBA6BDF1B84FAA3CDBA16456A96506E1BE562C3C3827C`.
 All three client snapshots and all four compatibility manifests must carry that
 same pin in their final metadata commits.
 
@@ -57,8 +57,8 @@ same pin in their final metadata commits.
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source and hosted release-set verification passed: all four manifests plus all three snapshots accept backend commit `56c73c6` and OpenAPI SHA-256 `A5137EFD...`; coordinated run `32726035561` built the four clean bundles from the branch commits | Maintainer |
-| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 385 integration tests; hosted CI run `32726035614` passed the build, all three suites, and the compose health gate | Maintainer and CI |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests plus all three snapshots accept backend commit `90c7dd2` and OpenAPI SHA-256 `EC8051EB...`; hosted verification of the updated pin remains | Maintainer |
+| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 398 integration tests; hosted verification of the updated candidate remains | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified at the current metadata commits: portal 104, cardholder 177, and POS 97 tests passed locally; hosted client CI evidence remains | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; the gate now accepts named HTTPS deployment endpoints, requires exact clean artifacts and pre-provisioned POS credentials, and emits checksum-protected redacted evidence; a real staging record remains | Maintainer |
 | Database change control | Separate migration and runtime roles; forward migration; startup against upgraded schema; rollback policy | Local source verified: explicit migrators own DDL; populated upgrade exposed and fixed an RLS-hidden payment backfill plus Windows Event Log masking; current and f80bab8 artifacts both reached readiness on the upgraded isolated restore; staging evidence remains | Maintainer and operator |
