@@ -1,11 +1,32 @@
 name: Coordinated release set
 
 on:
+  push:
+    branches:
+      - milestone/deployment-certified-rc
+    paths:
+      - ".github/workflows/release-set.yml"
+      - "docs/DEPLOYMENT.md"
+      - "LICENSE"
+      - "README.md"
+      - "RELEASE_COMPATIBILITY.json"
+      - "RELEASE_READINESS.md"
+      - "SECURITY.md"
+      - "scripts/Build-ReleaseArtifacts.ps1"
+      - "scripts/Test-OpenGiftCardSmoke.ps1"
+      - "scripts/Test-ReleaseContract.ps1"
+      - "scripts/Test-ReleaseSet.ps1"
   pull_request:
     paths:
       - ".github/workflows/release-set.yml"
+      - "docs/DEPLOYMENT.md"
+      - "LICENSE"
+      - "README.md"
       - "RELEASE_COMPATIBILITY.json"
+      - "RELEASE_READINESS.md"
+      - "SECURITY.md"
       - "scripts/Build-ReleaseArtifacts.ps1"
+      - "scripts/Test-OpenGiftCardSmoke.ps1"
       - "scripts/Test-ReleaseContract.ps1"
       - "scripts/Test-ReleaseSet.ps1"
   workflow_dispatch:
@@ -28,7 +49,7 @@ jobs:
     name: Four-repository compatibility
     runs-on: windows-latest
     env:
-      RELEASE_REF: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.ref }}
+      RELEASE_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref_name || inputs.ref }}
     steps:
       - name: Check out backend
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

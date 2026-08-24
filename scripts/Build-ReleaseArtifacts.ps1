@@ -153,6 +153,18 @@ function Test-ReleaseArchive(
         if ($null -eq $archive.GetEntry($entryPoint)) {
             throw "$Component archive is missing entry point '$entryPoint'."
         }
+        if ($Component -ceq 'backend') {
+            foreach ($operatorFile in @(
+                'DEPLOYMENT.md',
+                'scripts/OpenGiftCardLocal.Common.ps1',
+                'scripts/Test-BackendRollback.ps1',
+                'scripts/Test-OpenGiftCardSmoke.ps1',
+                'scripts/Test-PostgresRecovery.ps1')) {
+                if ($null -eq $archive.GetEntry("$expectedRoot/$operatorFile")) {
+                    throw "Backend archive is missing operator file '$operatorFile'."
+                }
+            }
+        }
 
         $contractEntry = $archive.GetEntry(
             "$expectedRoot/RELEASE_COMPATIBILITY.json")
@@ -304,6 +316,17 @@ try {
                 -Destination $bundlePath
             Copy-Item -LiteralPath (Join-Path $repoRoot 'RELEASE_READINESS.md') `
                 -Destination $bundlePath
+            $operatorScriptPath = Join-Path $bundlePath 'scripts'
+            New-Item -ItemType Directory -Path $operatorScriptPath -Force |
+                Out-Null
+            foreach ($operatorScript in @(
+                'OpenGiftCardLocal.Common.ps1',
+                'Test-BackendRollback.ps1',
+                'Test-OpenGiftCardSmoke.ps1',
+                'Test-PostgresRecovery.ps1')) {
+                Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\$operatorScript") `
+                    -Destination $operatorScriptPath
+            }
         }
 
         $componentInfo = [ordered]@{

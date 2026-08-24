@@ -81,7 +81,7 @@ and dead-lettering. An SMTP sender ships for demonstrations.
 
 ### What is not done
 
-This is not deployable, and the gaps are deliberate rather than unknown:
+This is not deployment-certified, and the remaining gaps are explicit:
 
 - **Managed audit custody.** Checkpoint signing uses local development key files.
   Production requires a KMS/HSM signer and immutable WORM storage; the seams
@@ -90,20 +90,20 @@ This is not deployable, and the gaps are deliberate rather than unknown:
 - **SMS.** No provider adapter. Outside Development, phone distribution, direct
   sharing, and bulk acceptance fail with `notification.channel.unconfigured`
   before business state is committed.
-- **Deployment and operations.** A backend Dockerfile and migration entry point
-  exist, but no immutable images are published and there is no certified TLS,
-  DNS, ingress, central logging, metrics, or staging recovery drill. A guarded
-  native-PostgreSQL recovery drill is available for local/operator evidence.
+- **Deployment and operations.** Coordinated versioned non-Docker archives,
+  explicit migrators, SBOMs, checksums, recovery and rollback drills, and an
+  automated staging evidence gate exist. No named environment has yet supplied
+  certified TLS, DNS, ingress, central logging, metrics, or recovery evidence.
 - **Staging certification.** Never deployed anywhere.
 - **POS counter application.** The `open-giftcard-pos` repository holds a
-  demonstration till against the backend payment APIs. It is not retail
-  software: the basket is a fixed mock, it carries no contract pin, and no
-  automated live-backend smoke journey now covers readiness, device
-  authentication, payment, reporting, and refund. Physical counter-device and
-  human browser certification remain outstanding.
+  demonstration till against the pinned backend payment contract. It is not
+  retail software: the basket is a fixed mock. The automated live-backend smoke
+  journey covers readiness, device authentication, payment, reporting, and full
+  refund; physical counter-device and human browser certification remain.
 
-Deployment gates are summarised under *What is not done* above. The full
-deployment guide is part of the documentation still to be published.
+Deployment gates are summarised under *What is not done* above. See the tracked
+[deployment guide](docs/DEPLOYMENT.md) for the native archive, migration,
+staging evidence, recovery, and rollback procedures.
 
 ### Client boundary
 
@@ -413,6 +413,40 @@ reads the platform receipt, and refunds the full amount. Secrets and payment
 credentials are never written to the console or the process-state file. The
 smoke till secret is reused from an ignored file encrypted to the current
 Windows user through DPAPI.
+
+For a named staging environment, use the same gate with deployment URLs, the
+clean artifact manifest that was deployed, and pre-provisioned smoke identities
+and POS credentials supplied through the process environment:
+
+```powershell
+$env:OPEN_GIFTCARD_SMOKE_PLATFORM_EMAIL = '<staging platform operator>'
+$env:OPEN_GIFTCARD_SMOKE_RECIPIENT_EMAIL = '<staging recipient>'
+$env:OPEN_GIFTCARD_SMOKE_PASSWORD = '<staging smoke password>'
+$env:OPEN_GIFTCARD_SMOKE_POS_CLIENT_CODE = '<staging POS client>'
+$env:OPEN_GIFTCARD_SMOKE_POS_TERMINAL_CODE = '<staging terminal>'
+$env:OPEN_GIFTCARD_SMOKE_POS_CLIENT_SECRET = '<staging POS secret>'
+$env:ConnectionStrings__Default = '<staging backend runtime connection>'
+
+.\scripts\Test-OpenGiftCardSmoke.ps1 `
+  -EnvironmentName 'staging-rc1' `
+  -BackendBaseUrl 'https://api.staging.example' `
+  -PortalUrl 'https://portal.staging.example' `
+  -PortalBffBaseUrl 'https://portal.staging.example' `
+  -CardholderBaseUrl 'https://card.staging.example' `
+  -PosBaseUrl 'https://pos.staging.example' `
+  -ArtifactManifestPath '<downloaded-artifact-set>\ARTIFACTS.json' `
+  -EvidencePath '.local\certification-evidence\staging-rc1-smoke.json'
+```
+
+Outside the `local` environment the gate requires HTTPS, a non-rehearsal
+four-application artifact set with matching ZIP, SBOM, embedded contract, and
+build metadata hashes, a least-privilege backend runtime connection, non-default
+credentials, and a pre-provisioned POS identity. It never provisions or stores a
+staging POS secret. The evidence JSON contains exact artifact and commit hashes,
+readiness, forced-RLS, and transaction results without credentials, and is
+paired with its own SHA-256 file. Existing evidence is never overwritten.
+`-AllowInsecureHttp` exists only for a non-certifying network rehearsal and
+records that the run does not count as deployment-verified smoke evidence.
 
 Use the port printed by `dotnet run`. `/demo` is the responsive development console:
 it guides bootstrap/login, customer onboarding, initial Company Administrator
