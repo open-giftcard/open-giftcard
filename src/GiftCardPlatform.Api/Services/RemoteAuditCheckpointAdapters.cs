@@ -20,6 +20,7 @@ internal sealed class RemoteAuditCheckpointAdapters :
     IDisposable
 {
     internal const string SignatureAlgorithm = "ECDSA-P256-SHA256-P1363";
+    private const string NistP256Oid = "1.2.840.10045.3.1.7";
     internal const string ManifestMediaType =
         "application/vnd.open-giftcard.audit-checkpoint+json";
     private const int MaximumSignerResponseBytes = 64 * 1024;
@@ -149,8 +150,22 @@ internal sealed class RemoteAuditCheckpointAdapters :
                 MaximumSignerResponseBytes,
                 cancellationToken)
             .ConfigureAwait(false);
-        var result = JsonSerializer.Deserialize<RemoteSignResponse>(bytes, JsonOptions)
-            ?? throw new CryptographicException("The checkpoint signer returned an empty result.");
+        RemoteSignResponse? result;
+        try
+        {
+            result = JsonSerializer.Deserialize<RemoteSignResponse>(bytes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            // The parser message quotes the offending bytes, so it is dropped
+            // rather than chained as an inner exception.
+            throw new CryptographicException("The checkpoint signer returned malformed JSON.");
+        }
+
+        if (result is null)
+        {
+            throw new CryptographicException("The checkpoint signer returned an empty result.");
+        }
         if (!string.Equals(result.Algorithm, SignatureAlgorithm, StringComparison.Ordinal) ||
             !string.Equals(result.KeyId, signerKeyId, StringComparison.Ordinal))
         {
@@ -261,8 +276,20 @@ internal sealed class RemoteAuditCheckpointAdapters :
                 MaximumInventoryResponseBytes,
                 cancellationToken)
             .ConfigureAwait(false);
-        var result = JsonSerializer.Deserialize<WitnessInventoryResponse>(bytes, JsonOptions)
-            ?? throw new InvalidOperationException("The witness inventory returned an empty result.");
+        WitnessInventoryResponse? result;
+        try
+        {
+            result = JsonSerializer.Deserialize<WitnessInventoryResponse>(bytes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException("The witness inventory returned malformed JSON.");
+        }
+
+        if (result is null)
+        {
+            throw new InvalidOperationException("The witness inventory returned an empty result.");
+        }
         if (result.References is null || result.References.Count > MaximumInventoryReferences)
         {
             throw new InvalidOperationException("The witness inventory size is invalid.");
@@ -458,11 +485,32 @@ internal sealed class RemoteAuditCheckpointAdapters :
 
         using var key = ECDsa.Create();
         key.ImportSubjectPublicKeyInfo(publicKey, out var bytesRead);
-        if (bytesRead != publicKey.Length || key.KeySize != 256)
+        if (bytesRead != publicKey.Length || key.KeySize != 256 || !IsNistP256(key))
         {
             throw new CryptographicException(
                 "The checkpoint signer public key is not an ECDSA P-256 key.");
         }
+    }
+
+    /// <summary>
+    /// A 256-bit key size does not identify the curve: secp256k1 and
+    /// brainpoolP256r1 are also 256 bits and would otherwise pass a check that
+    /// claims to accept only P-256.
+    /// </summary>
+    private static bool IsNistP256(ECDsa key)
+    {
+        var curve = key.ExportParameters(includePrivateParameters: false).Curve;
+        if (!curve.IsNamed)
+        {
+            return false;
+        }
+
+        // Oid.Value is not populated on every platform, so the friendly name is
+        // accepted as a fallback rather than as the primary identifier.
+        return string.Equals(curve.Oid.Value, NistP256Oid, StringComparison.Ordinal) ||
+            (string.IsNullOrEmpty(curve.Oid.Value) &&
+                (string.Equals(curve.Oid.FriendlyName, "nistP256", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(curve.Oid.FriendlyName, "ECDSA_P256", StringComparison.OrdinalIgnoreCase)));
     }
 
     private static string BuildReference(Guid checkpointId) =>

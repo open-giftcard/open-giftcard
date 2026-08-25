@@ -220,6 +220,232 @@ public sealed class RemoteAuditCheckpointAdapterTests
     }
 
     [Fact]
+    public async Task Signer_malformed_json_is_refused_without_echoing_the_response_body()
+    {
+        const string Marker = "SECRET-GATEWAY-DETAIL-9f2c";
+        using var handler = new DelegateHandler(_ => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{ not json " + Marker, Encoding.UTF8, "application/json"),
+            }));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<CryptographicException>(() =>
+            adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+
+        Assert.Contains("malformed JSON", exception.Message);
+        Assert.DoesNotContain(Marker, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Signer_refuses_a_response_naming_a_different_algorithm()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var handler = SignerReturning(
+            "ECDSA-P384-SHA384-P1363",
+            "kms/key/audit-1",
+            key.ExportSubjectPublicKeyInfo(),
+            new byte[64]);
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<CryptographicException>(() =>
+            adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+
+        Assert.Contains("unexpected algorithm or key identifier", exception.Message);
+    }
+
+    [Fact]
+    public async Task Signer_refuses_a_public_key_that_is_not_valid_spki()
+    {
+        using var handler = SignerReturning(
+            RemoteAuditCheckpointAdapters.SignatureAlgorithm,
+            "kms/key/audit-1",
+            [1, 2, 3, 4, 5],
+            new byte[64]);
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        await Assert.ThrowsAnyAsync<CryptographicException>(() =>
+            adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("secP256k1")]
+    [InlineData("brainpoolP256r1")]
+    public async Task Signer_refuses_a_256_bit_key_on_a_curve_other_than_p256(string curveName)
+    {
+        ECDsa key;
+        try
+        {
+            key = ECDsa.Create(ECCurve.CreateFromFriendlyName(curveName));
+        }
+        catch (Exception exception) when (
+            exception is PlatformNotSupportedException or CryptographicException or NotSupportedException)
+        {
+            // The curve is unavailable on this platform, so there is nothing to prove.
+            return;
+        }
+
+        using (key)
+        {
+            Assert.Equal(256, key.KeySize);
+            using var handler = SignerReturning(
+                RemoteAuditCheckpointAdapters.SignatureAlgorithm,
+                "kms/key/audit-1",
+                key.ExportSubjectPublicKeyInfo(),
+                new byte[64]);
+            using var client = new HttpClient(handler);
+            using var adapters = Adapters(client);
+
+            var exception = await Assert.ThrowsAsync<CryptographicException>(() =>
+                adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+
+            Assert.Contains("not an ECDSA P-256 key", exception.Message);
+        }
+    }
+
+    [Fact]
+    public async Task Signer_refuses_a_signature_that_is_not_64_bytes()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var handler = SignerReturning(
+            RemoteAuditCheckpointAdapters.SignatureAlgorithm,
+            "kms/key/audit-1",
+            key.ExportSubjectPublicKeyInfo(),
+            new byte[70]);
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<CryptographicException>(() =>
+            adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+
+        Assert.Contains("64-byte P1363", exception.Message);
+    }
+
+    [Fact]
+    public async Task Signer_refuses_an_oversized_response()
+    {
+        using var handler = new DelegateHandler(_ => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    new string('x', (64 * 1024) + 1),
+                    Encoding.UTF8,
+                    "application/json"),
+            }));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            adapters.SignDigestAsync(SHA256.HashData("checkpoint"u8), CancellationToken.None));
+
+        Assert.Contains("exceeded its size limit", exception.Message);
+    }
+
+    [Fact]
+    public async Task Publish_refuses_a_manifest_larger_than_the_limit()
+    {
+        using var handler = new DelegateHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.Created)));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            adapters.PublishAsync(Guid.NewGuid(), new byte[(64 * 1024) + 1], CancellationToken.None));
+
+        Assert.Contains("manifest size is invalid", exception.Message);
+    }
+
+    [Fact]
+    public async Task Publish_refuses_when_the_witness_rejects_but_the_object_cannot_be_read()
+    {
+        // A witness that refuses creation and then denies the object exists is
+        // concealing something, so this must not be reported as a publish.
+        using var handler = new DelegateHandler(request => Task.FromResult(
+            new HttpResponseMessage(request.Method == HttpMethod.Put
+                ? HttpStatusCode.PreconditionFailed
+                : HttpStatusCode.NotFound)));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            adapters.PublishAsync(Guid.NewGuid(), "manifest"u8.ToArray(), CancellationToken.None));
+
+        Assert.Contains("cannot be read", exception.Message);
+    }
+
+    [Fact]
+    public async Task Inventory_refuses_a_duplicate_reference()
+    {
+        const string Reference = "16bb641d3c7f45289337a48908bc96ce.json";
+        using var handler = new DelegateHandler(_ =>
+            Task.FromResult(JsonResponse(new { references = new[] { Reference, Reference } })));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            adapters.ListReferencesAsync(CancellationToken.None));
+
+        Assert.Contains("duplicate reference", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("../../etc/passwd")]
+    [InlineData("16bb641d3c7f45289337a48908bc96ce.txt")]
+    [InlineData("not-a-guid.json")]
+    public async Task Inventory_refuses_an_invalid_reference(string reference)
+    {
+        using var handler = new DelegateHandler(_ =>
+            Task.FromResult(JsonResponse(new { references = new[] { reference } })));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            adapters.ListReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Inventory_refuses_malformed_json_without_echoing_the_response_body()
+    {
+        const string Marker = "SECRET-INVENTORY-DETAIL-4a71";
+        using var handler = new DelegateHandler(_ => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[[[" + Marker, Encoding.UTF8, "application/json"),
+            }));
+        using var client = new HttpClient(handler);
+        using var adapters = Adapters(client);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            adapters.ListReferencesAsync(CancellationToken.None));
+
+        Assert.Contains("malformed JSON", exception.Message);
+        Assert.DoesNotContain(Marker, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    private static RemoteAuditCheckpointAdapters Adapters(HttpClient client) =>
+        RemoteAuditCheckpointAdapters.CreateForTests(
+            client,
+            SignerEndpoint,
+            "kms/key/audit-1",
+            WitnessBaseUrl);
+
+    private static DelegateHandler SignerReturning(
+        string algorithm,
+        string keyId,
+        byte[] publicKey,
+        byte[] signature) =>
+        new(_ => Task.FromResult(JsonResponse(new
+        {
+            algorithm,
+            keyId,
+            publicKeySpkiBase64 = Convert.ToBase64String(publicKey),
+            signatureP1363Base64 = Convert.ToBase64String(signature),
+        })));
+
+    [Fact]
     public void Client_certificate_key_storage_never_uses_an_ephemeral_key_set_on_windows()
     {
         var flags = RemoteAuditCheckpointAdapters.ResolvePkcs12StorageFlags();
