@@ -83,10 +83,13 @@ and dead-lettering. An SMTP sender ships for demonstrations.
 
 This is not deployment-certified, and the remaining gaps are explicit:
 
-- **Managed audit custody.** Checkpoint signing uses local development key files.
-  Production requires a KMS/HSM signer and immutable WORM storage; the seams
-  exist and the adapters do not. Non-Development configuration refuses to enable
-  checkpointing rather than silently using local keys.
+- **Managed audit custody.** The `RemoteHttp` provider signs and publishes
+  through a separately operated custody gateway over mutual TLS, so the
+  checkpoint private key stays in KMS/HSM custody and this application never
+  holds it. It has only run against a stubbed transport. No gateway, WORM
+  retention policy, or verification drill has run in a named environment, and
+  the mutual TLS handshake itself is unproven. `DevelopmentFile` is still
+  refused outside Development.
 - **SMS.** No provider adapter. Outside Development, phone distribution, direct
   sharing, and bulk acceptance fail with `notification.channel.unconfigured`
   before business state is committed.
@@ -523,11 +526,23 @@ store gateway do not collapse into one source-IP bucket.
 
 Audit checkpoint defaults are
 `Audit__Checkpoints__Enabled=false`,
+`Audit__Checkpoints__Provider=DevelopmentFile`,
 `Audit__Checkpoints__PollIntervalSeconds=300`, and
-`Audit__Checkpoints__BatchSize=10000`. Local Development additionally requires
-explicit `DevelopmentSigningKeyPath` (an ECDSA P-256 PEM private key) and
+`Audit__Checkpoints__BatchSize=10000`. Enabling checkpointing requires naming
+the provider; an unrecognised value fails startup rather than leaving
+checkpointing off.
+
+`DevelopmentFile` runs only in Development and requires explicit
+`DevelopmentSigningKeyPath` (an ECDSA P-256 PEM private key) and
 `DevelopmentWitnessDirectory`. The local witness uses create-only files and is
 for developer verification only; it is not a production WORM substitute.
+
+`RemoteHttp` calls a custody gateway and takes
+`RemoteSignerEndpoint`, `RemoteSignerKeyId`, `RemoteWitnessBaseUrl`, and
+`RemoteTimeoutSeconds` (default 30). Client authentication needs exactly one of
+`RemoteClientCertificatePath` with `RemoteClientCertificatePassword`, or
+`RemoteClientCertificateThumbprint` for the Windows certificate store. Both
+URLs must be absolute HTTPS without credentials, query, or fragment.
 
 Platform payment reporting is available at
 `GET /api/v1/platform/reports/payments` and

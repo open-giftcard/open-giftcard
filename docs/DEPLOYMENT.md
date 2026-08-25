@@ -59,22 +59,47 @@ database and test recovery as one operation. Do not share this directory with
 the portal, cardholder, or POS applications; each uses a distinct application
 name and key ring.
 
-Audit checkpointing is disabled in this provider-neutral source candidate:
+Audit checkpointing is disabled by default:
 
 ```text
 Audit__Checkpoints__Enabled=false
+Audit__Checkpoints__Provider=DevelopmentFile
 Audit__Checkpoints__PollIntervalSeconds=300
 Audit__Checkpoints__BatchSize=10000
 ```
 
-Before enabling it outside Development, the deployment implementation must wire
-`IAuditCheckpointSigner` to a non-exportable ECDSA P-256 key in an independently
-administered KMS/HSM and `IAuditCheckpointWitness` to externally administered
-WORM storage. This repository intentionally fails startup if a non-Development
-environment enables checkpointing without that provider work; it never falls
-back to a local key or mutable filesystem. Signer/witness IAM must be separate
-from database administration. Alert on worker event 1901 (sealing delayed) and
-event 1902 (verification failure). These failures do not make financial writes
+Outside Development the only accepted provider is `RemoteHttp`, which points at
+a custody gateway you operate:
+
+```text
+Audit__Checkpoints__Enabled=true
+Audit__Checkpoints__Provider=RemoteHttp
+Audit__Checkpoints__RemoteSignerEndpoint=https://custody.internal/sign
+Audit__Checkpoints__RemoteSignerKeyId=<KMS or HSM key identifier>
+Audit__Checkpoints__RemoteWitnessBaseUrl=https://custody.internal/audit/
+Audit__Checkpoints__RemoteTimeoutSeconds=30
+Audit__Checkpoints__RemoteClientCertificatePath=/run/secrets/audit-custody.pfx
+Audit__Checkpoints__RemoteClientCertificatePassword=<PFX password>
+```
+
+Use `RemoteClientCertificateThumbprint` instead of the path and password pair
+when the certificate lives in the Windows certificate store. Exactly one of the
+two sources must be configured. Both URLs must be absolute HTTPS with no
+credentials, query, or fragment; plain HTTP and redirects are refused.
+
+The gateway holds the ECDSA P-256 signing key in an independently administered
+KMS/HSM and writes manifests to WORM storage. This application authenticates
+with a client certificate and never receives the private key. It refuses a
+signer response carrying a different algorithm or key identifier, and publishes
+create-only: a retry against an existing checkpoint reads the stored bytes back
+and compares them, so a manifest cannot be rewritten. Give the gateway an IAM
+identity separate from database administration, and set WORM retention on the
+witness bucket rather than relying on the create-only request alone.
+
+`DevelopmentFile` fails startup outside Development, so a misconfigured
+environment stops rather than falling back to a local key or mutable
+filesystem. Alert on worker event 1901 (sealing delayed) and event 1902
+(verification failure). These failures do not make financial writes
 unavailable, but the unsealed window is an operational incident.
 
 Protected-share expiry is enabled by default. Keep
@@ -314,9 +339,12 @@ Before promotion:
    request logs to append-only audit records.
 5. Verify the runtime role is non-superuser/NOBYPASSRLS and cannot mutate audit
    history or bypass forced tenant policies.
-6. When managed checkpoint adapters are supplied, verify one signed manifest in
-   WORM storage independently with the recorded public key, then test the alert
-   path for a missing or changed witness object.
+6. With `RemoteHttp` configured, confirm the mutual TLS handshake succeeds
+   against the real gateway; this is the step no test in this repository can
+   cover. Then verify one signed manifest in WORM storage independently with
+   the recorded public key, republish the same checkpoint to confirm the
+   create-only path returns the original bytes, and test the alert path for a
+   missing or changed witness object.
 7. Trigger each alert safely in staging or through the rule engine's test path,
    verify routing to its named owner, and record the incident reference. The
    query gate proves rules are loaded and quiet, not that paging delivery works.
