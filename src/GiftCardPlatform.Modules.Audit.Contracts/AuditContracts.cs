@@ -166,7 +166,13 @@ public sealed class AuditCheckpointOptions
 {
     public const string SectionName = "Audit:Checkpoints";
 
+    public const string DevelopmentFileProvider = "DevelopmentFile";
+
+    public const string RemoteHttpProvider = "RemoteHttp";
+
     public bool Enabled { get; set; }
+
+    public string? Provider { get; set; }
 
     public int PollIntervalSeconds { get; set; } = 300;
 
@@ -175,6 +181,20 @@ public sealed class AuditCheckpointOptions
     public string? DevelopmentSigningKeyPath { get; set; }
 
     public string? DevelopmentWitnessDirectory { get; set; }
+
+    public string? RemoteSignerEndpoint { get; set; }
+
+    public string? RemoteSignerKeyId { get; set; }
+
+    public string? RemoteWitnessBaseUrl { get; set; }
+
+    public string? RemoteClientCertificatePath { get; set; }
+
+    public string? RemoteClientCertificatePassword { get; set; }
+
+    public string? RemoteClientCertificateThumbprint { get; set; }
+
+    public int RemoteTimeoutSeconds { get; set; } = 30;
 }
 
 /// <summary>Result returned by an external or Development-only signing adapter.</summary>

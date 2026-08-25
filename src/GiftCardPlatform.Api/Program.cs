@@ -161,27 +161,51 @@ var auditCheckpointOptions = builder.Configuration
     .Get<AuditCheckpointOptions>() ?? new AuditCheckpointOptions();
 if (auditCheckpointOptions.Enabled)
 {
-    if (!builder.Environment.IsDevelopment())
+    if (string.Equals(
+            auditCheckpointOptions.Provider,
+            AuditCheckpointOptions.DevelopmentFileProvider,
+            StringComparison.Ordinal))
+    {
+        if (!builder.Environment.IsDevelopment())
+        {
+            throw new InvalidOperationException(
+                "The DevelopmentFile audit checkpoint provider cannot run outside Development.");
+        }
+
+        if (string.IsNullOrWhiteSpace(auditCheckpointOptions.DevelopmentSigningKeyPath) ||
+            string.IsNullOrWhiteSpace(auditCheckpointOptions.DevelopmentWitnessDirectory))
+        {
+            throw new InvalidOperationException(
+                "Development audit checkpointing requires explicit signing-key and witness paths.");
+        }
+
+        builder.Services.AddSingleton<IAuditCheckpointSigner>(serviceProvider =>
+            new DevelopmentFileAuditCheckpointSigner(
+                auditCheckpointOptions.DevelopmentSigningKeyPath));
+        builder.Services.AddSingleton<IAuditCheckpointWitness>(serviceProvider =>
+            new DevelopmentFileAuditCheckpointWitness(
+                auditCheckpointOptions.DevelopmentWitnessDirectory,
+                serviceProvider.GetRequiredService<TimeProvider>()));
+    }
+    else if (string.Equals(
+                 auditCheckpointOptions.Provider,
+                 AuditCheckpointOptions.RemoteHttpProvider,
+                 StringComparison.Ordinal))
+    {
+        builder.Services.AddSingleton(serviceProvider =>
+            RemoteAuditCheckpointAdapters.Create(
+                auditCheckpointOptions,
+                serviceProvider.GetRequiredService<TimeProvider>()));
+        builder.Services.AddSingleton<IAuditCheckpointSigner>(serviceProvider =>
+            serviceProvider.GetRequiredService<RemoteAuditCheckpointAdapters>());
+        builder.Services.AddSingleton<IAuditCheckpointWitness>(serviceProvider =>
+            serviceProvider.GetRequiredService<RemoteAuditCheckpointAdapters>());
+    }
+    else
     {
         throw new InvalidOperationException(
-            "Audit checkpointing outside Development requires an external KMS/HSM signer " +
-            "and immutable witness adapter; no production provider is selected.");
+            "Audit:Checkpoints:Provider must be DevelopmentFile or RemoteHttp when checkpointing is enabled.");
     }
-
-    if (string.IsNullOrWhiteSpace(auditCheckpointOptions.DevelopmentSigningKeyPath) ||
-        string.IsNullOrWhiteSpace(auditCheckpointOptions.DevelopmentWitnessDirectory))
-    {
-        throw new InvalidOperationException(
-            "Development audit checkpointing requires explicit signing-key and witness paths.");
-    }
-
-    builder.Services.AddSingleton<IAuditCheckpointSigner>(serviceProvider =>
-        new DevelopmentFileAuditCheckpointSigner(
-            auditCheckpointOptions.DevelopmentSigningKeyPath));
-    builder.Services.AddSingleton<IAuditCheckpointWitness>(serviceProvider =>
-        new DevelopmentFileAuditCheckpointWitness(
-            auditCheckpointOptions.DevelopmentWitnessDirectory,
-            serviceProvider.GetRequiredService<TimeProvider>()));
 }
 builder.Services.AddHostedService<AuditCheckpointWorker>();
 builder.Services.AddOptions<GiftCardExpirationOptions>()

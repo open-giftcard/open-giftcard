@@ -45,6 +45,7 @@ public static class AuditModuleExtensions
                 options.Enabled = bool.TryParse(
                     section[nameof(options.Enabled)],
                     out var enabled) && enabled;
+                options.Provider = section[nameof(options.Provider)];
                 if (int.TryParse(
                         section[nameof(options.PollIntervalSeconds)],
                         out var pollIntervalSeconds))
@@ -61,6 +62,24 @@ public static class AuditModuleExtensions
                     section[nameof(options.DevelopmentSigningKeyPath)];
                 options.DevelopmentWitnessDirectory =
                     section[nameof(options.DevelopmentWitnessDirectory)];
+                options.RemoteSignerEndpoint =
+                    section[nameof(options.RemoteSignerEndpoint)];
+                options.RemoteSignerKeyId =
+                    section[nameof(options.RemoteSignerKeyId)];
+                options.RemoteWitnessBaseUrl =
+                    section[nameof(options.RemoteWitnessBaseUrl)];
+                options.RemoteClientCertificatePath =
+                    section[nameof(options.RemoteClientCertificatePath)];
+                options.RemoteClientCertificatePassword =
+                    section[nameof(options.RemoteClientCertificatePassword)];
+                options.RemoteClientCertificateThumbprint =
+                    section[nameof(options.RemoteClientCertificateThumbprint)];
+                if (int.TryParse(
+                        section[nameof(options.RemoteTimeoutSeconds)],
+                        out var remoteTimeoutSeconds))
+                {
+                    options.RemoteTimeoutSeconds = remoteTimeoutSeconds;
+                }
             })
             .Validate(
                 options => options.PollIntervalSeconds is >= 30 and <= 86_400,
@@ -68,6 +87,9 @@ public static class AuditModuleExtensions
             .Validate(
                 options => options.BatchSize is >= 1 and <= 10_000,
                 "Audit:Checkpoints:BatchSize must be between 1 and 10000.")
+            .Validate(
+                options => options.RemoteTimeoutSeconds is >= 1 and <= 120,
+                "Audit:Checkpoints:RemoteTimeoutSeconds must be between 1 and 120.")
             .ValidateOnStart();
 
         return services;
