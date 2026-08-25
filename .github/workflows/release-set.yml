@@ -66,27 +66,27 @@ jobs:
       RELEASE_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref_name || inputs.ref }}
     steps:
       - name: Check out backend
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: release-set/open-giftcard
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out portal
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: open-giftcard/open-giftcard-portal
           path: release-set/open-giftcard-portal
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out cardholder
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: open-giftcard/open-giftcard-cardholder
           path: release-set/open-giftcard-cardholder
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out POS
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: open-giftcard/open-giftcard-pos
           path: release-set/open-giftcard-pos
@@ -111,17 +111,17 @@ jobs:
           ./release-set/open-giftcard/scripts/Test-ObservabilityEvidence.ps1
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: release-set/open-giftcard/global.json
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: 11.9.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: pnpm
@@ -161,7 +161,7 @@ jobs:
           -NoRestore
 
       - name: Upload coordinated artifact set
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: open-giftcard-release-set
           path: release-artifacts

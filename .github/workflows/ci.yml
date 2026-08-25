@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Release compatibility contract
         shell: pwsh
@@ -44,7 +44,7 @@ jobs:
       # Resolved from global.json so CI uses the same SDK family as local
       # development, rather than whatever happens to be latest on the runner.
       - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
 
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: test-results
           path: "**/TestResults/*.trx"
@@ -96,7 +96,7 @@ jobs:
     # clean clone would not reach a healthy, migrated API.
     steps:
       - name: Check out
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Create .env exactly as the README instructs
         run: |
