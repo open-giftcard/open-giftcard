@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 namespace GiftCardPlatform.Modules.Payments.Contracts;
 
 /// <summary>
@@ -87,7 +88,7 @@ public sealed record CreatePaymentProvisionRequest(
     decimal Amount,
     string? PosTransactionReference,
     bool AllowPartialApproval = false,
-    string? IdempotencyKey = null);
+    [property: Required] string? IdempotencyKey = null);
 
 public sealed record ConfirmPaymentProvisionRequest(decimal Amount);
 
@@ -132,7 +133,7 @@ public interface IPaymentBalanceInquiryService
 
 public sealed record CreatePaymentRefundRequest(
     decimal Amount,
-    string? IdempotencyKey,
+    [property: Required] string? IdempotencyKey,
     string? PosTransactionReference,
     string? Reason);
 

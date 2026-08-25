@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using GiftCardPlatform.Modules.CorporateCredits.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +17,7 @@ public sealed record AllocateCorporateCreditApiRequest
     public string? BusinessReference { get; init; }
 
     /// <example>allocation-contract-2026-0042-v1</example>
+    [Required]
     public string? IdempotencyKey { get; init; }
 }
 
@@ -33,6 +35,7 @@ public sealed record ReverseCorporateCreditApiRequest
 {
     public string? Reason { get; init; }
 
+    [Required]
     public string? IdempotencyKey { get; init; }
 }
 

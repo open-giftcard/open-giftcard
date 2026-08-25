@@ -409,6 +409,7 @@ builder.Services.AddSwaggerGen(options =>
         [new OpenApiSecuritySchemeReference("Bearer", document)] = [],
     });
 
+    options.SupportNonNullableReferenceTypes();
 });
 
 var app = builder.Build();

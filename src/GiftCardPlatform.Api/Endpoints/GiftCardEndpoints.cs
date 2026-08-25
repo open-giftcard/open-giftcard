@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using GiftCardPlatform.Modules.GiftCards.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +23,7 @@ public sealed record IssueGiftCardApiRequest
     public string? BusinessReference { get; init; }
 
     /// <example>gift-card-employee-award-2026-0042-v1</example>
+    [Required]
     public string? IdempotencyKey { get; init; }
 }
 
@@ -62,9 +64,9 @@ public sealed record GiftCardInventoryPageApiResponse(
 
 public sealed record GiftCardLifecycleCommandApiRequest(
     string? Reason,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
-public sealed record OwnGiftCardLifecycleCommandApiRequest(string? IdempotencyKey);
+public sealed record OwnGiftCardLifecycleCommandApiRequest([property: Required] string? IdempotencyKey);
 
 public sealed record GiftCardLifecycleOperationApiResponse(
     GiftCardLifecycleEventResult Event);

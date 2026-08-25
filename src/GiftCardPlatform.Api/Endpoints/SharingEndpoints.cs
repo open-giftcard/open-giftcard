@@ -1,27 +1,28 @@
+using System.ComponentModel.DataAnnotations;
 using GiftCardPlatform.Modules.Sharing.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GiftCardPlatform.Api.Endpoints;
 
-public sealed record CreateGiftCardShareApiRequest(decimal Amount, string? IdempotencyKey);
+public sealed record CreateGiftCardShareApiRequest(decimal Amount, [property: Required] string? IdempotencyKey);
 
-public sealed record CancelGiftCardShareApiRequest(string? IdempotencyKey);
+public sealed record CancelGiftCardShareApiRequest([property: Required] string? IdempotencyKey);
 
 public sealed record ClaimGiftCardShareApiRequest(
     string? ClaimToken,
     string? Pin,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
 public sealed record CreateDirectGiftCardShareApiRequest(
     decimal Amount,
     GiftCardShareContactType ContactType,
     string? RecipientContact,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
 public sealed record ClaimDirectGiftCardShareApiRequest(
     string? ClaimToken,
     string? Password,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
 internal static class SharingEndpoints
 {

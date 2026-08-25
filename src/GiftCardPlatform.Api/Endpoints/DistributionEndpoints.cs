@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using GiftCardPlatform.Modules.Distribution.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +8,7 @@ public sealed record DistributeGiftCardApiRequest(
     RecipientContactType ContactType,
     string? RecipientContact,
     string? BusinessReference,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
 public sealed record DistributionInvitationApiResponse(
     Guid Id,
@@ -35,7 +36,7 @@ public sealed record ClaimGiftCardApiRequest(
     RecipientContactType? ContactType,
     string? RecipientContact,
     string? Password,
-    string? IdempotencyKey);
+    [property: Required] string? IdempotencyKey);
 
 public sealed record GiftCardClaimApiResponse(
     Guid InvitationId,
@@ -59,7 +60,7 @@ public sealed record BulkGiftCardBatchItemApiRequest(
 
 public sealed record CreateBulkGiftCardBatchApiRequest(
     string? BatchReference,
-    string? IdempotencyKey,
+    [property: Required] string? IdempotencyKey,
     IReadOnlyList<BulkGiftCardBatchItemApiRequest>? Items);
 
 internal static class DistributionEndpoints
