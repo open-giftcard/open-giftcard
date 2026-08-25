@@ -43,13 +43,13 @@ non-self-referential release metadata:
 
 | Component | Frozen implementation commit |
 | --- | --- |
-| Backend | `90c7dd2a17a6eb4ea686fc344de25f3a1a155d12` |
+| Backend | `a8a506ae7de8871ce24462e1e838eded3fba67bc` |
 | Portal | `837dd91286951ef71ffe7a5992860272e1151e3c` |
 | Cardholder | `6afd8b87ea261a1cf389845dc4488d4e10eaeac2` |
 | POS | `4531ec0c602599cb6d4ff3643f9dbf01a2278360` |
 
 The accepted backend commit serves OpenAPI SHA-256
-`EC8051EBC7F65007DB8BBA6BDF1B84FAA3CDBA16456A96506E1BE562C3C3827C`.
+`DE48FE7764D9C58DD4CEA3E9DC6A3B4698A29527CD0CBE386E9C4360AB32B663`.
 All three client snapshots and all four compatibility manifests must carry that
 same pin in their final metadata commits.
 
@@ -57,7 +57,7 @@ same pin in their final metadata commits.
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests plus all three snapshots accept backend commit `90c7dd2` and OpenAPI SHA-256 `EC8051EB...`; hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests plus all three snapshots accept backend commit `a8a506a` and OpenAPI SHA-256 `DE48FE77...`; hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
 | Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 421 integration tests; hosted CI green on `13c09e4` (run 32821994689), `8a88b7e` (run 32823947756) and `303232a` (run 32824704228) | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified at the current metadata commits: portal 104, cardholder 177, and POS 97 tests passed locally. All three client repositories triggered CI only on `push` to `main`, so no head on this branch had ever been built; the trigger is now `["**"]` as the backend already used. First hosted client builds on this branch are green: portal `eff2add` (run 32826630979), cardholder `5cf65ea` (run 32826636671) and POS `4fb1784` (run 32826642278) | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; the gate now accepts named HTTPS deployment endpoints, requires exact clean artifacts and pre-provisioned POS credentials, and emits checksum-protected redacted evidence; a real staging record remains | Maintainer |
