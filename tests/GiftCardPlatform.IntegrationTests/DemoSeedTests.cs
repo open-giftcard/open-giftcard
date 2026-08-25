@@ -20,7 +20,7 @@ namespace GiftCardPlatform.IntegrationTests;
 /// sharing either with another run would make the result depend on test order.
 /// </summary>
 [Collection(PlatformApiCollection.Name)]
-public sealed class DemoSeedTests(PlatformApiFixture fixture)
+public sealed class DemoSeedTests(PlatformApiFixture fixture) : IDisposable
 {
     private readonly string _suffix = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
 
@@ -42,6 +42,10 @@ public sealed class DemoSeedTests(PlatformApiFixture fixture)
     // A silently failing seed is undiagnosable in CI, so the host's log records
     // are captured and reported when an assertion fails.
     private readonly CapturedLogs _logs = new();
+
+    // xUnit builds one instance per test, so the captured records are released
+    // with the test that produced them.
+    public void Dispose() => _logs.Dispose();
 
     private WebApplicationFactory<Program> SeedingHost() =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(webHost =>
