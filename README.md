@@ -15,6 +15,13 @@ This repository has no tags and no releases, and `main` is the only branch that
 receives fixes. Until a release is tagged, the only way to pin a version of this
 platform is by commit.
 
+[`VERSIONING.md`](VERSIONING.md) states what each version number will commit
+this project to when tagging begins, and what it deliberately will not. In
+short: `v0.5.0` means it has been deployed to a named environment and the
+evidence is recorded, `v1.0.0` means `/api/v1` is stable, upgrades within 1.x
+are safe, and an adopter can rebrand and extend it without forking. Neither is
+a production warranty, and nothing below is a readiness claim.
+
 An earlier revision of this section announced a synchronized candidate
 `v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags and
 commits exist only in the private repositories this project was developed in.

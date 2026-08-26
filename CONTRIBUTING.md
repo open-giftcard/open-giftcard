@@ -128,10 +128,18 @@ is real volatility, and prefer the existing seam where one fits.
 
 ### Changing the API contract
 
-The portal and cardholder each pin a captured copy of the OpenAPI document, and
-their CI fails when the recorded hash stops matching the file. A change that
-alters the served document means those clients need recapturing at an agreed
-backend commit; say so in the pull request.
+The portal, cardholder, and POS each pin a captured copy of the OpenAPI
+document, and their CI fails when the recorded hash stops matching the file. A
+change that alters the served document means those clients need recapturing at
+an agreed backend commit; say so in the pull request.
+
+Before 1.0 the served document may change freely, as long as the three pins are
+recaptured together. From 1.0 onward, [VERSIONING.md](VERSIONING.md) governs
+what may change inside `/api/v1` and what has to wait for the next major
+version, and it carries the deprecation policy. A pull request that removes or
+renames anything in the served document, makes an optional request field
+required, or changes a status code or problem type URI, is a breaking change
+under that policy and needs to say so.
 
 ## What a good pull request looks like
 

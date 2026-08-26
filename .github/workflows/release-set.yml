@@ -23,6 +23,7 @@ on:
       - "scripts/Test-ReleaseSet.ps1"
       - "scripts/Test-StagingAcceptanceRecord.ps1"
       - "STAGING_ACCEPTANCE.example.json"
+      - "VERSIONING.md"
   pull_request:
     paths:
       - ".github/workflows/release-set.yml"
@@ -43,6 +44,7 @@ on:
       - "scripts/Test-ReleaseSet.ps1"
       - "scripts/Test-StagingAcceptanceRecord.ps1"
       - "STAGING_ACCEPTANCE.example.json"
+      - "VERSIONING.md"
   workflow_dispatch:
     inputs:
       ref:

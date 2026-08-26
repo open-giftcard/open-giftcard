@@ -1,0 +1,146 @@
+# Versioning and release promises
+
+What each version number commits this project to, and what it deliberately does
+not. `RELEASE_READINESS.md` is the gate for the current candidate; this file is
+the longer-lived statement of what the numbers mean.
+
+The four repositories version in lockstep through `RELEASE_COMPATIBILITY.json`.
+A version names a set of four compatible artifacts and one backend OpenAPI
+document, never one repository on its own.
+
+## The version line
+
+| Version | What it means |
+| --- | --- |
+| `0.x` | No promises. The API, the schema, and the configuration may all change. Pin by commit. |
+| `v0.5.0` | It runs. The candidate has been deployed to a named environment and the evidence is recorded. Still no stability promise. |
+| `v1.0.0` | It is stable and adoptable. The three promises below take effect. |
+| `1.x` | Additive change only, under the deprecation policy below. |
+| `2.0.0` | Reserved for a breaking API change, served as `/api/v2` alongside `/api/v1`. |
+
+`v0.5.0` and `v1.0.0` are independent. Certifying a deployment and committing to
+stability are different claims, they are blocked on different things, and
+neither has to wait for the other.
+
+## What 1.0 promises
+
+### 1. The HTTP API is stable within 1.x
+
+`/api/v1` will not break in any 1.x release. Concretely, these are allowed:
+
+- new endpoints
+- new optional request fields
+- new response fields
+- new enum values in a response, where the field is already documented as open
+- relaxing a validation rule
+
+and these are not, until `/api/v2`:
+
+- removing or renaming an endpoint, a request field, or a response field
+- making an optional request field required
+- narrowing an accepted value set, including adding a currency allow-list
+- changing the status code returned for an existing condition
+- changing a problem type URI
+
+Problem type URIs under `https://giftcard.example/problems/` are stable
+identifiers, not documentation links. `src/api.ts` compares them literally.
+They are deliberately not configurable and will not be renamed within a major
+version.
+
+**How it is enforced.** A CI job compares the served OpenAPI document against
+the previous release tag and fails on any change in the second list. Until that
+job exists, this promise is a convention, and 1.0 does not ship without it.
+
+### 2. Upgrading within 1.x is safe
+
+- Migrations are forward-only. A 1.x database is never downgraded.
+- Any 1.x release applies cleanly on top of any earlier 1.x database.
+- `GET /health/ready` returns 503 naming the modules that are behind whenever
+  the schema does not match the running build, so an instance refuses traffic
+  rather than serving a partly migrated database.
+- Application rollback to the previous artifact is supported only through the
+  documented compatibility probe in `docs/DEPLOYMENT.md`, and only with
+  compensating controls for any security feature the older artifact lacks.
+
+**How it is enforced.** A CI job applies the previous release's migrations to a
+populated database, then the current release's, and asserts readiness. Until
+that job exists, this promise rests on one manual upgrade drill, and 1.0 does
+not ship without it.
+
+### 3. An adopter can use it without forking the core
+
+By 1.0, someone who has never spoken to the maintainer can:
+
+- rebrand the product name, logo, colours, and sender identity through
+  configuration, without editing source or fixing a failing test
+- reach a working, populated system with documented credentials in one
+  command, including the portal and cardholder, not just the API
+- add a notification or audit custody provider by following published
+  documentation
+- read the architecture decisions behind every invariant the project claims
+
+## What 1.0 does not promise
+
+Stated plainly so nothing here is inferred from the number alone.
+
+- **It is not a production warranty.** The certification boundary in
+  `RELEASE_READINESS.md` still holds: this project cannot certify an operator's
+  TLS termination, DNS, backup retention, incident staffing, KMS, HSM, or WORM
+  provider. Those stay operator responsibilities at every version.
+- **The database schema is not a stable interface.** The twelve module schemas,
+  the module boundaries, and the internal contract types may change in any 1.x
+  release. Anyone reading the tables directly is reading an internal surface.
+  `Modules.Reporting` does exactly that and is inside the project for that
+  reason.
+- **Configuration keys are not frozen.** Names and defaults may change within
+  1.x, with a changelog entry. The fixed 15 minute and 30 day session lifetimes
+  are a deliberate invariant that fails startup when changed, and revisiting
+  them is a 1.x change, not a breaking one.
+- **SMS is absent by design.** Phone distribution, direct sharing, and bulk
+  acceptance fail closed with `notification.channel.unconfigured` before any
+  business state is committed. An operator adding an SMS adapter certifies it
+  themselves.
+- **The POS till is a reference client.** It exercises the payment contract and
+  is versioned alongside the others. It is not retail software and physical
+  counter-device certification is not part of any release claim.
+
+## Deprecation policy
+
+Within 1.x, a surface may be deprecated but not removed.
+
+1. Mark the operation or field `deprecated: true` in the OpenAPI document.
+2. Record it in `CHANGELOG.md` under the release that deprecates it, naming the
+   replacement.
+3. Keep it working for at least two minor releases.
+4. Remove it only in the next major version.
+
+A deprecation is not a breaking change and does not require a major bump. A
+removal always does.
+
+## The 1.0 gate
+
+Same four states as `RELEASE_READINESS.md`. Nothing is called 1.0 while a
+required row is blocked.
+
+| Area | Required evidence | State |
+| --- | --- | --- |
+| Contract stability | CI fails a breaking change to the served `/api/v1` document against the previous release tag | Blocked: no semantic diff job exists |
+| Deprecation policy | Written, published, and referenced from `CONTRIBUTING.md` | Source verified: this file |
+| Upgrade safety | CI applies release N-1 migrations to a populated database, then N, and asserts readiness | Blocked: one manual drill only, from `f80bab8` |
+| Client contract direction | A client that omits a newly required field fails its own build, in all three clients | Blocked: route and field lists are hand-written, 48 literals in the portal and 18 in the cardholder |
+| Branding as configuration | Changing one configured value renames the product across backend, portal, and cardholder, with tests and the Turkish catalogue still passing | Blocked: no branding configuration exists |
+| Demo reachability | One command reaches a portal login screen with seeded data, using credentials published in the README | Blocked: credentials unpublished, clients not containerized |
+| Provider extension | Published documentation walks an adopter through adding one notification and one audit custody provider | Source verified: `CONTRIBUTING.md`, honest that registration edits the host |
+| Architecture decisions | Every ADR referenced from a public file resolves to a public document | Blocked: 34 distinct ADR numbers are cited across tracked files in the four repositories and none resolve, because `docs/` is excluded from publication |
+| Financial invariants | Balanced double entry, ledger-derived balances, idempotency, and forced RLS covered by the real-PostgreSQL suite | Source verified |
+| Static analysis | CodeQL green on the released commit in all four repositories | Source verified |
+| Release artifacts | Four versioned archives with SBOMs, checksums, and provenance attestation for the exact tagged commit | Source verified for the mechanism, unexercised on a real tag |
+| Deployment evidence | Inherited from `v0.5.0`, referenced rather than repeated | Blocked: named environment |
+
+## Why 1.0 is not defined as production certified
+
+It would make the version number depend on infrastructure this project does not
+own and cannot inspect. The honest split is that `v0.5.0` carries the deployment
+evidence for one named environment, and `v1.0.0` carries the promises the
+project can keep on its own: a stable API, a safe upgrade, and a system someone
+else can adopt without forking it.
