@@ -3,6 +3,7 @@ name: Coordinated release set
 on:
   push:
     branches:
+      - main
       - milestone/deployment-certified-rc
     paths:
       - ".github/workflows/release-set.yml"
@@ -48,7 +49,7 @@ on:
       ref:
         description: Matching branch or tag to verify in all four repositories
         required: true
-        default: milestone/deployment-certified-rc
+        default: main
         type: string
 
 permissions:
