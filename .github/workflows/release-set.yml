@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - milestone/deployment-certified-rc
     paths:
       - ".github/workflows/release-set.yml"
       - "docs/DEPLOYMENT.md"
