@@ -1,14 +1,17 @@
 name: CodeQL
 
-# Static analysis on the default branch and on every pull request. Analysis runs
-# without building: CodeQL's buildless mode for C# reads the source directly, so
-# this gate does not depend on the toolchain the build job pins.
+# Static analysis on every branch and every pull request, matching the CI gate.
+# Restricting this to the default branch meant a long-lived milestone branch was
+# never scanned at all, so the work under review was the work nothing had looked
+# at. Analysis runs without building: CodeQL's buildless mode for C# reads the
+# source directly, so this gate does not depend on the toolchain the build job
+# pins.
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
   schedule:
     - cron: "17 3 * * 1"
 
