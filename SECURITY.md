@@ -16,8 +16,10 @@ project maintained by one person.
 
 ## Supported versions
 
-There is no released version yet. `main` is the only branch that receives fixes.
-The published tags predate the open-source cleanup and should not be used.
+`v0.9.0` is the current release and the only supported version. `main` is
+where fixes land, and a fix reaches you in the next tag rather than by
+backport. Local tags predating the open-source cleanup were never published and
+should not be used.
 
 ## What the platform actually enforces
 

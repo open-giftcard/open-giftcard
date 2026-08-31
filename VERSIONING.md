@@ -13,6 +13,7 @@ document, never one repository on its own.
 | Version | What it means |
 | --- | --- |
 | `0.x` | No promises. The API, the schema, and the configuration may all change. Pin by commit. |
+| `v0.9.0` | The source is complete and self-verifying. Every promise 1.0 will make is either enforced in CI or explicitly withdrawn, and the documentation to check that is published. Still 0.x: no stability promise, and nothing has been deployed. |
 | `v0.5.0` | It runs. The candidate has been deployed to a named environment and the evidence is recorded. Still no stability promise. |
 | `v1.0.0` | It is stable and adoptable. The three promises below take effect. |
 | `1.x` | Additive change only, under the deprecation policy below. |
@@ -21,6 +22,19 @@ document, never one repository on its own.
 `v0.5.0` and `v1.0.0` are independent. Certifying a deployment and committing to
 stability are different claims, they are blocked on different things, and
 neither has to wait for the other.
+
+`v0.9.0` sits outside that pair deliberately. It is the first tag this project
+has ever cut, and it exists because two of the checks below cannot work without
+a previous release to compare against: the API compatibility gate needs a
+baseline, and the upgrade job needs an earlier schema. Tagging is what lets
+those gates start doing their job, so it comes before the release it protects
+rather than after.
+
+What `v0.9.0` says: the code is finished enough to hold still, the promises are
+written down, and the machinery that will enforce them is running. What it does
+not say: that anything has been deployed, that the API will not change, or that
+an upgrade path has been exercised. Those are `v0.5.0` and `v1.0.0`, and both
+are still open.
 
 ## What 1.0 promises
 
@@ -80,8 +94,10 @@ without naming a module as behind. It then asserts the seeded value survived and
 that every ledger transaction still balances per currency, so a migration that
 half-applies or loses value fails the build rather than the first request.
 
-The baseline is currently the accepted commit rather than the previous release
-tag, because no repository has a tag yet. Point it at the tag once one exists.
+The baseline is currently the accepted commit rather than a release tag, because
+until `v0.9.0` no repository had one. Repoint it at `v0.9.0` in the change that
+introduces the next schema migration, which is the first point at which the
+comparison has anything to say.
 
 **What a green tick here does and does not mean.** The job only exercises an
 upgrade when the two commits differ in migrations. When they do not, it still

@@ -3,12 +3,12 @@
 All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-There is no released version and nothing has been deployed anywhere, so there
-are no version headings yet. Everything below has landed on `main` since the
-first public commit. The tags that predate the open-source cleanup are not
-usable and are not listed.
+`v0.9.0` is the first release of this project. It makes no stability or
+deployment promise; see `VERSIONING.md` for exactly what the number means and
+what it deliberately does not. Local tags predating the open-source cleanup are
+not usable, were never published, and are not listed.
 
-## Unreleased
+## v0.9.0 - 2026-08-31
 
 ### Added
 

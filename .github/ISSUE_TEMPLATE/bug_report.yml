@@ -37,7 +37,7 @@ body:
     id: commit
     attributes:
       label: Commit
-      description: Output of `git rev-parse --short HEAD`. There is no released version yet.
+      description: The release tag you are on, or the output of `git rev-parse --short HEAD` if you are on a branch.
     validations:
       required: true
   - type: textarea

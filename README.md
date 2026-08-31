@@ -3,32 +3,40 @@
 Secure, multi-tenant platform that digitizes corporate gift cards. Built as a
 modular monolith on .NET 10, ASP.NET Core, and PostgreSQL.
 
-Contributor documentation is being rewritten for this release and is not
-published yet. Until it lands, this README is the authoritative guide, and the
-code is the authority over the README: the architecture tests, the migrations,
-and the integration suite describe the system precisely.
+This README gets you running. [`docs/`](docs/README.md) explains how the system
+is built and why: the architecture, the domain rules, the code map, and the
+architecture decision records the source cites by number.
+
+The code is the authority over all of it. Where a document and the
+implementation disagree, the architecture tests, the migrations, and the
+integration suite describe the system precisely, and the document is wrong.
 
 ## Current state
 
-All four functional phases are implemented. **There is no released version.**
-This repository has no tags and no releases, and `main` is the only branch that
-receives fixes. Until a release is tagged, the only way to pin a version of this
-platform is by commit.
+All four functional phases are implemented. The current release is
+**`v0.9.0`**, the first this project has ever published, cut across all four
+repositories at the same commit set and recorded in
+[`RELEASE_COMPATIBILITY.json`](RELEASE_COMPATIBILITY.json).
 
-[`VERSIONING.md`](VERSIONING.md) states what each version number will commit
-this project to when tagging begins, and what it deliberately will not. In
-short: `v0.5.0` means it has been deployed to a named environment and the
-evidence is recorded, `v1.0.0` means `/api/v1` is stable, upgrades within 1.x
-are safe, and an adopter can rebrand and extend it without forking. Neither is
-a production warranty, and nothing below is a readiness claim.
+`v0.9.0` is still `0.x`, and it is worth being precise about what that buys you.
+It means the source is complete and checks its own claims: the API contract, the
+upgrade path, and every architecture decision the code cites are enforced or
+published rather than asserted. It does **not** mean the API is stable, that an
+upgrade path has been exercised, or that anything has been deployed anywhere.
+Pin by tag if you want a fixed point; expect it to move under you until 1.0.
+
+[`VERSIONING.md`](VERSIONING.md) states what each number commits this project
+to. In short: `v0.5.0` means it has been deployed to a named environment with
+the evidence recorded, and `v1.0.0` means `/api/v1` is stable and upgrades
+within 1.x are safe. Both are still open, they are independent of each other,
+and neither is a production warranty.
 
 An earlier revision of this section announced a synchronized candidate
-`v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags and
-commits exist only in the private repositories this project was developed in.
-The public repositories were created from a squashed initial commit, so nothing
-in that table could be resolved here, and `SECURITY.md` already said the
-published tags predate the open-source cleanup and should not be used. The claim
-is removed rather than reworded.
+`v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags
+exist only in the private repositories this project was developed in and were
+never published. The public repositories were created from a squashed initial
+commit, so nothing in that table could be resolved here. `v0.9.0` is unrelated
+to them and is the first tag any of these repositories has carried.
 
 Each client repository pins its own capture of the backend OpenAPI document
 under `contracts/`, and each `contracts/README.md` records the backend commit
