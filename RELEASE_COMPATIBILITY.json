@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "release": "v0.9.0",
+  "release": "v0.9.1",
   "channel": "release",
   "backendContract": {
     "repository": "open-giftcard/open-giftcard",
@@ -12,25 +12,25 @@
     {
       "id": "backend",
       "repository": "open-giftcard/open-giftcard",
-      "tag": "v0.9.0",
+      "tag": "v0.9.1",
       "artifact": "open-giftcard-backend"
     },
     {
       "id": "portal",
       "repository": "open-giftcard/open-giftcard-portal",
-      "tag": "v0.9.0",
+      "tag": "v0.9.1",
       "artifact": "open-giftcard-portal"
     },
     {
       "id": "cardholder",
       "repository": "open-giftcard/open-giftcard-cardholder",
-      "tag": "v0.9.0",
+      "tag": "v0.9.1",
       "artifact": "open-giftcard-cardholder"
     },
     {
       "id": "pos",
       "repository": "open-giftcard/open-giftcard-pos",
-      "tag": "v0.9.0",
+      "tag": "v0.9.1",
       "artifact": "open-giftcard-pos"
     }
   ]

@@ -14,11 +14,12 @@ integration suite describe the system precisely, and the document is wrong.
 ## Current state
 
 All four functional phases are implemented. The current release is
-**`v0.9.0`**, the first this project has ever published, cut across all four
-repositories at the same commit set and recorded in
-[`RELEASE_COMPATIBILITY.json`](RELEASE_COMPATIBILITY.json).
+**`v0.9.1`**, cut across all four repositories at the same commit set and
+recorded in [`RELEASE_COMPATIBILITY.json`](RELEASE_COMPATIBILITY.json).
+`v0.9.0` was the first tag this project ever published, an hour earlier; it
+named a commit whose own CI failed, and `v0.9.1` is the corrected release.
 
-`v0.9.0` is still `0.x`, and it is worth being precise about what that buys you.
+`v0.9.1` is still `0.x`, and it is worth being precise about what that buys you.
 It means the source is complete and checks its own claims: the API contract, the
 upgrade path, and every architecture decision the code cites are enforced or
 published rather than asserted. It does **not** mean the API is stable, that an
@@ -35,8 +36,8 @@ An earlier revision of this section announced a synchronized candidate
 `v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags
 exist only in the private repositories this project was developed in and were
 never published. The public repositories were created from a squashed initial
-commit, so nothing in that table could be resolved here. `v0.9.0` is unrelated
-to them and is the first tag any of these repositories has carried.
+commit, so nothing in that table could be resolved here. The `v0.9.x` tags are
+unrelated to them and are the first any of these repositories has carried.
 
 Each client repository pins its own capture of the backend OpenAPI document
 under `contracts/`, and each `contracts/README.md` records the backend commit

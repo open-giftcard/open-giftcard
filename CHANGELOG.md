@@ -3,10 +3,27 @@
 All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-`v0.9.0` is the first release of this project. It makes no stability or
-deployment promise; see `VERSIONING.md` for exactly what the number means and
-what it deliberately does not. Local tags predating the open-source cleanup are
-not usable, were never published, and are not listed.
+`v0.9.1` is the current release, and `v0.9.0` an hour before it was the first
+tag this project ever published. Neither makes a stability or deployment
+promise; see `VERSIONING.md` for what the number means and what it deliberately
+does not. Local tags predating the open-source cleanup are not usable, were
+never published, and are not listed.
+
+## v0.9.1 - 2026-08-31
+
+### Fixed
+
+- The release contract check reported a correctly tagged release as untagged,
+  and failed CI on the `v0.9.0` commit in all four repositories. It looked for
+  the tag only in the local working copy, and `actions/checkout` fetches a
+  single commit with no tags, so the tag existed on the remote and not on the
+  runner. It now looks locally first and falls back to `git ls-remote`; a tag
+  found in either place passes, a tag found in neither still fails, and an
+  unreachable remote warns rather than blocking an offline contributor.
+
+  `v0.9.0` is left in history as what it was. It names a commit whose own CI
+  does not pass, for a defect in the release tooling rather than in the
+  platform, and `v0.9.1` is the corrected release.
 
 ## v0.9.0 - 2026-08-31
 
