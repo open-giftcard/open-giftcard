@@ -86,7 +86,8 @@ try {
     $required = @(
         'README.md', 'LICENSE', 'SECURITY.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
         'CHANGELOG.md', 'VERSIONING.md', 'RELEASE_READINESS.md', 'RELEASE_COMPATIBILITY.json',
-        '.env.example', 'docker-compose.yml', 'Dockerfile', 'global.json',
+        '.env.example', 'docker-compose.yml', 'docker-compose.full.yml', 'Dockerfile', 'global.json',
+        'infra/postgres/create-client-databases.sh',
         'docs/README.md', 'docs/ARCHITECTURE.md', 'docs/DECISIONS.md', 'docs/DOMAIN_RULES.md',
         'docs/CODEMAP.md', 'docs/DEPLOYMENT.md', 'docs/FRONTEND_INTEGRATION.md',
         'contracts/backend.openapi.json', 'infra/postgres/init/01-roles-and-privileges.sh'
@@ -159,12 +160,29 @@ try {
     # application demands and the example omits is a setup dead end.
     $exampleKeys = Get-Content -LiteralPath (Join-Path $clone '.env.example') |
         ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=') { $Matches[1] } }
-    $composeRequired = Select-String -LiteralPath (Join-Path $clone 'docker-compose.yml') -Pattern '\$\{([A-Za-z_][A-Za-z0-9_]*)\:\?' -AllMatches |
-        ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-    foreach ($key in $composeRequired) {
-        if ($exampleKeys -contains $key) { Add-Pass "$key documented" }
-        else { Add-Failure "docker-compose.yml requires $key but .env.example does not define it." }
+    foreach ($composeFile in 'docker-compose.yml', 'docker-compose.full.yml') {
+        $composePath = Join-Path $clone $composeFile
+        if (-not (Test-Path -LiteralPath $composePath)) {
+            Add-Failure "$composeFile is missing from a fresh clone."
+            continue
+        }
+
+        # ${VAR:?message} is compose's "required, fail with this message". Any
+        # such variable the example does not define is a setup dead end.
+        $composeRequired = Select-String -LiteralPath $composePath -Pattern '\$\{([A-Za-z_][A-Za-z0-9_]*)\:\?' -AllMatches |
+            ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+        foreach ($key in $composeRequired) {
+            if ($exampleKeys -contains $key) { Add-Pass "$composeFile requires $key, documented" }
+            else { Add-Failure "$composeFile requires $key but .env.example does not define it." }
+        }
     }
+
+    # Every placeholder must be replaced before use, so the example must not
+    # ship a value that would silently work.
+    $unreplaced = Get-Content -LiteralPath (Join-Path $clone '.env.example') |
+        Where-Object { $_ -match '^\s*[A-Za-z_][A-Za-z0-9_]*\s*=.*(change_me_locally|replace-me)' }
+    if ($unreplaced) { Add-Pass "$($unreplaced.Count) placeholder value(s) still marked for replacement" }
+    else { Add-Failure '.env.example has no placeholder markers, so a reader cannot tell what to change.' }
 
     # ------------------------------------------------------------------ 7
     Start-Step 'The solution restores and builds at zero warnings'
