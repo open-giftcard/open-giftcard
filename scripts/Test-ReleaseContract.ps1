@@ -114,17 +114,39 @@ $selfComponent = @($manifest.components | Where-Object { $_.repository -eq $Repo
 Assert-ReleaseContract ($selfComponent.Count -eq 1) "This repository '$Repository' is not a member of the release contract."
 
 # The check that would have caught the phantom tags: on a released channel, the
-# tag this repository claims must actually exist here. Cross-repository tags
-# cannot be resolved offline, so each repository verifies its own.
+# tag this repository claims must actually exist. Cross-repository tags cannot
+# be resolved from here, so each repository verifies its own.
+#
+# Look locally first, then at the remote. A CI checkout is shallow and carries
+# no tags by default, so a local-only check fails on a correctly tagged commit,
+# which is exactly what happened the first time v0.9.0 was pushed. The remote is
+# the authority for whether a tag exists; the local working copy is a cache that
+# may legitimately not have it.
 if ($isReleased) {
     $git = Get-Command git -ErrorAction SilentlyContinue
     if ($git) {
         $tag = $selfComponent[0].tag
         & git -C $repoRoot rev-parse --verify --quiet "refs/tags/$tag" *> $null
-        Assert-ReleaseContract ($LASTEXITCODE -eq 0) "RELEASE_COMPATIBILITY.json names tag '$tag' but no such tag exists in this repository. Create the tag, or move the manifest back to the development channel."
+        $foundLocally = $LASTEXITCODE -eq 0
+
+        if ($foundLocally) {
+            Write-Host "Tag '$tag' resolves locally."
+        }
+        else {
+            $remote = & git -C $repoRoot ls-remote --tags origin "refs/tags/$tag" 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                # No network, no remote, or no credentials. Refusing here would
+                # fail an offline contributor for something they cannot check.
+                Write-Warning "Tag '$tag' is not in this working copy and the remote could not be reached, so its existence was not verified."
+            }
+            else {
+                Assert-ReleaseContract ($remote -match [regex]::Escape("refs/tags/$tag")) "RELEASE_COMPATIBILITY.json names tag '$tag' but no such tag exists locally or on origin. Create and push the tag, or move the manifest back to the development channel."
+                Write-Host "Tag '$tag' resolves on origin, though not in this shallow working copy."
+            }
+        }
     }
     else {
-        Write-Warning 'git was not found, so the local tag existence check was skipped.'
+        Write-Warning 'git was not found, so the tag existence check was skipped.'
     }
 }
 
