@@ -239,7 +239,7 @@ jobs:
                         corporate_credits gift_cards distribution sharing \
                         payments notifications partners; do
             rows=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
-              "select count(*) from ${schema}.__ef_migrations_history")
+              "select count(*) from \"${schema}\".__ef_migrations_history")
             applied=$((applied + rows))
           done
           echo "migrations at baseline: $applied"
@@ -292,7 +292,7 @@ jobs:
                         corporate_credits gift_cards distribution sharing \
                         payments notifications partners; do
             rows=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
-              "select count(*) from ${schema}.__ef_migrations_history")
+              "select count(*) from \"${schema}\".__ef_migrations_history")
             applied=$((applied + rows))
           done
           before=${{ steps.seeded.outputs.baseline_migrations }}
