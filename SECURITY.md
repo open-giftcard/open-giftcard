@@ -31,6 +31,36 @@ their first migration, and the runtime database role is non-superuser and
 client-supplied organization or membership id. A refusal returns 404 rather than
 a confirming 403, so a probe cannot learn that another tenant's data exists.
 
+*Which tables, exactly.* Every table that holds tenant-owned data has RLS
+enabled and forced. Some tables deliberately do not, and they are listed here
+rather than left for a reviewer to find by querying `pg_class`:
+
+- `organizations.organizations` is `ENABLE` but not `FORCE`. Forcing it would
+  subject the table owner to the policy, and the policy depends on a
+  `SECURITY DEFINER` function that reads this very table to resolve the
+  caller's tenant root. The owner is the migration role, which by ADR-019 is
+  never used at runtime; the runtime role owns nothing and stays subject to the
+  policy.
+- `identity.users`, `identity.sessions` and `identity.refresh_tokens` hold
+  **global** identities. One person may hold memberships in several tenants, so
+  there is no single tenant these rows belong to and no column to isolate on.
+  Access is constrained in the application, and a session carries no authority
+  until a membership is resolved for the organization being acted in.
+- `payments.pos_clients` and `payments.pos_terminals` are a platform-wide
+  device registry with no tenant column. A POS device carries no tenant of its
+  own by design; the tenant of a sale comes from the card the presented
+  credential resolves to. Registering and retiring devices requires the
+  platform permission `platform.pos.clients.manage`, not a tenant role.
+- The `authorization` platform catalogue and bootstrap tables, and the
+  `audit` checkpoint, seal and witness tables, are platform-scoped rather than
+  tenant-scoped. `audit.audit_records` itself, which does hold tenant data, is
+  enabled and forced.
+- `__ef_migrations_history` in each schema is owned by the migration role.
+
+`Test-RowLevelSecurityPosture` in the integration suite asserts this exact list,
+so a new tenant table cannot be added without either a forced policy or a
+deliberate, reviewed entry here.
+
 **Two database roles.** Migrations run as an owner role; the application runs as
 a role that owns nothing and holds no DDL privilege, so a compromised
 application cannot alter its own schema.

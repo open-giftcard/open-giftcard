@@ -142,11 +142,62 @@ non-root runtime user owns that path, so queued notification credentials remain
 decryptable across container replacement without granting root privileges.
 
 The API is published on `http://localhost:5143`; `GET /health/ready` reports
-when it is serving. Set `DEMO_SEED=true` in `.env` to build a demonstration
-tenant on first start: an organization with two child organizations, a company
-administrator, corporate credit, an issued and claimed card, a confirmed payment,
-and a partial refund. That seed is Development-only and is not registered in any
-other environment.
+when it is serving.
+
+### Sign in to the demonstration tenant
+
+Set `DEMO_SEED=true` in `.env` before the first start. The seed builds an
+organization with two child organizations, a company administrator, corporate
+credit, an issued and claimed card, a confirmed payment, and a partial refund.
+It drives the ordinary application services rather than writing rows directly,
+so what you see is what the API actually produces, and it is idempotent.
+
+Three accounts are created. They share one password so this table is short:
+
+| Account | Email | Sees |
+| --- | --- | --- |
+| Platform administrator | `platform.admin@example.test` | Everything, across tenants. Allocates corporate credit. |
+| Company administrator | `company.admin@example.test` | One tenant: its organizations, inventory, and reporting. |
+| Recipient | `recipient@example.test` | One claimed gift card, its balance and history. |
+
+```text
+Password for all three:  Demo passphrase 2026!
+Organization:            Northwind Trading
+```
+
+Authenticate with `POST /api/v1/auth/login`, then send the returned bearer
+token. Every staff request also needs the organization it acts in:
+
+```bash
+curl -sS http://localhost:5143/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}'
+```
+
+The response carries `accessToken`. Staff calls also need the organization the
+caller is acting in, sent as `X-Organization-Id`. Discover it with
+`GET /api/v1/me/organizations`, which is the one staff endpoint deliberately
+called *without* that header:
+
+```bash
+curl -sS http://localhost:5143/api/v1/me/organizations \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Each entry carries `organization.id`. Send that as `X-Organization-Id` on every
+subsequent staff call. The header is only ever a request: the server resolves
+your active membership from the database and refuses the call if you do not
+hold one, so naming another tenant's organization fails rather than succeeding.
+As the endpoint's own description puts it, the returned membership is not proof
+of authority until it is selected and verified.
+
+The recipient account needs no organization header at all. A cardholder is not
+a member of one, and reads their own cards from `GET /api/v1/me/gift-cards`.
+
+These credentials are Development-only. The seed's hosted service is not
+registered in any other environment, so setting `DEMO_SEED=true` outside
+Development does nothing at all. Change `Demo:Seed:Password` if you expose a
+development instance to anyone else.
 
 Docker is not required. The native PostgreSQL path below is fully supported and
 is what the maintainer uses; the sections after it apply either way.
