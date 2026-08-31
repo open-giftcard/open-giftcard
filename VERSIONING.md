@@ -83,6 +83,18 @@ half-applies or loses value fails the build rather than the first request.
 The baseline is currently the accepted commit rather than the previous release
 tag, because no repository has a tag yet. Point it at the tag once one exists.
 
+**What a green tick here does and does not mean.** The job only exercises an
+upgrade when the two commits differ in migrations. When they do not, it still
+proves that this build serves a database the baseline populated, which is worth
+having, but no migration was applied and nothing about migration safety was
+tested. The job prints which of the two cases it ran and how many migrations it
+applied, so the distinction is in the log rather than left to be inferred. On
+its first run, against the accepted commit, the answer was zero: that commit and
+this one carry the same migrations.
+
+This is the honest limit of the check until the baseline is a release tag with
+schema changes behind it. Read the printed count, not the tick.
+
 ### 3. An adopter can use it without forking the core
 
 By 1.0, someone who has never spoken to the maintainer can:

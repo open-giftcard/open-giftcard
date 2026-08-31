@@ -222,6 +222,7 @@ jobs:
           docker inspect giftcard-migrations --format '{{.State.ExitCode}}' | grep -qx 0
 
       - name: Confirm the baseline seeded real data
+        id: seeded
         run: |
           set -eu
           # shellcheck disable=SC2046
@@ -230,6 +231,19 @@ jobs:
             'select count(*) from ledger.entries')
           echo "ledger entries after seed: $count"
           test "$count" -gt 0
+
+          # Recorded so the next step can say whether this run actually
+          # exercised a schema change or only application compatibility.
+          applied=0
+          for schema in organizations audit identity authorization ledger \
+                        corporate_credits gift_cards distribution sharing \
+                        payments notifications partners; do
+            rows=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
+              "select count(*) from ${schema}.__ef_migrations_history")
+            applied=$((applied + rows))
+          done
+          echo "migrations at baseline: $applied"
+          echo "baseline_migrations=$applied" >> "$GITHUB_OUTPUT"
 
       # Only the application is replaced. The database volume, and therefore the
       # populated schema, is the one the baseline left behind.
@@ -261,6 +275,39 @@ jobs:
           echo "the upgraded API never became ready"
           docker compose logs api
           exit 1
+
+      # A green tick on this job means different things depending on whether the
+      # two commits differ in migrations, and the difference matters enough to
+      # print rather than leave to be inferred. When they do not differ the job
+      # still proves something real, that this build serves a database populated
+      # by the baseline, but it has not exercised an upgrade and must not be
+      # read as though it had.
+      - name: Report what this run actually exercised
+        run: |
+          set -eu
+          # shellcheck disable=SC2046
+          export $(grep -E '^(POSTGRES_DB|POSTGRES_SUPERUSER)=' .env | xargs)
+          applied=0
+          for schema in organizations audit identity authorization ledger \
+                        corporate_credits gift_cards distribution sharing \
+                        payments notifications partners; do
+            rows=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
+              "select count(*) from ${schema}.__ef_migrations_history")
+            applied=$((applied + rows))
+          done
+          before=${{ steps.seeded.outputs.baseline_migrations }}
+          added=$((applied - before))
+          echo "migrations at baseline: $before"
+          echo "migrations after upgrade: $applied"
+          echo "applied by this build: $added"
+          if [ "$added" -gt 0 ]; then
+            echo "UPGRADE EXERCISED: $added migration(s) applied to a populated database."
+          else
+            echo "NO SCHEMA CHANGE: this build has the same migrations as the baseline."
+            echo "This run proved that it serves a database the baseline populated."
+            echo "It did not exercise a migration upgrade, because there was none to apply."
+          fi
+          echo "migrations_applied=$added" >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: The seeded data survived the upgrade
         run: |
