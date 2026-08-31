@@ -47,9 +47,20 @@ identifiers, not documentation links. `src/api.ts` compares them literally.
 They are deliberately not configurable and will not be renamed within a major
 version.
 
-**How it is enforced.** A CI job compares the served OpenAPI document against
-the previous release tag and fails on any change in the second list. Until that
-job exists, this promise is a convention, and 1.0 does not ship without it.
+**How it is enforced.** `scripts/Test-ApiCompatibility.ps1` compares the served
+OpenAPI document against the accepted baseline in `contracts/` and fails on any
+change in the second list. CI runs it in the `compose` job, against the document
+a real running instance serves rather than a generated file. Additive change
+passes; anything outside either list is reported as a warning, because the
+promise is the list.
+
+The baseline moves only at a major release, and never to make a failure go away.
+`contracts/README.md` says so where someone tempted to move it will be reading.
+
+One item on the forbidden list is not machine-checked: problem type URIs do not
+appear in the OpenAPI document, so nothing compares them. They are compared
+literally by client code, so a change would break clients silently. Treat them
+as frozen by review until a check exists.
 
 ### 2. Upgrading within 1.x is safe
 
@@ -62,17 +73,20 @@ job exists, this promise is a convention, and 1.0 does not ship without it.
   documented compatibility probe in `docs/DEPLOYMENT.md`, and only with
   compensating controls for any security feature the older artifact lacks.
 
-**How it is enforced.** A CI job applies the previous release's migrations to a
-populated database, then the current release's, and asserts readiness. Until
-that job exists, this promise rests on one manual upgrade drill, and 1.0 does
-not ship without it.
+**How it is enforced.** The `upgrade` job in CI brings up the accepted baseline,
+populates it through the demonstration seed, then applies this build's
+migrations over that same database volume and requires `/health/ready` to answer
+without naming a module as behind. It then asserts the seeded value survived and
+that every ledger transaction still balances per currency, so a migration that
+half-applies or loses value fails the build rather than the first request.
+
+The baseline is currently the accepted commit rather than the previous release
+tag, because no repository has a tag yet. Point it at the tag once one exists.
 
 ### 3. An adopter can use it without forking the core
 
 By 1.0, someone who has never spoken to the maintainer can:
 
-- rebrand the product name, logo, colours, and sender identity through
-  configuration, without editing source or fixing a failing test
 - reach a working, populated system with documented credentials in one
   command, including the portal and cardholder, not just the API
 - add a notification or audit custody provider by following published
@@ -103,6 +117,14 @@ Stated plainly so nothing here is inferred from the number alone.
 - **The POS till is a reference client.** It exercises the payment contract and
   is versioned alongside the others. It is not retail software and physical
   counter-device certification is not part of any release claim.
+- **Branding is not configurable.** An earlier revision of this file promised
+  that an adopter could rebrand the product name, logo, colours, and sender
+  identity through configuration by 1.0. No such configuration was ever built,
+  and promising it unbuilt is worse than not promising it. Product naming is
+  presently in source, in templates, and in the cardholder's string catalogue,
+  so rebranding means editing them. This is planned after 1.0 and is deliberately
+  not a 1.x compatibility commitment, because introducing it will add
+  configuration keys rather than break any.
 
 ## Deprecation policy
 
@@ -124,14 +146,13 @@ required row is blocked.
 
 | Area | Required evidence | State |
 | --- | --- | --- |
-| Contract stability | CI fails a breaking change to the served `/api/v1` document against the previous release tag | Blocked: no semantic diff job exists |
+| Contract stability | CI fails a breaking change to the served `/api/v1` document against the accepted baseline | Source verified: `scripts/Test-ApiCompatibility.ps1`, run against the served document in the `compose` job |
 | Deprecation policy | Written, published, and referenced from `CONTRIBUTING.md` | Source verified: this file |
-| Upgrade safety | CI applies release N-1 migrations to a populated database, then N, and asserts readiness | Blocked: one manual drill only, from `f80bab8` |
+| Upgrade safety | CI applies the accepted baseline's migrations to a populated database, then this build's, and asserts readiness | Source verified: the `upgrade` job, which also asserts the seeded value survived and every ledger transaction still balances |
 | Client contract direction | A client that omits a newly required field fails its own build, in all three clients | Blocked: route and field lists are hand-written, 48 literals in the portal and 18 in the cardholder |
-| Branding as configuration | Changing one configured value renames the product across backend, portal, and cardholder, with tests and the Turkish catalogue still passing | Blocked: no branding configuration exists |
-| Demo reachability | One command reaches a portal login screen with seeded data, using credentials published in the README | Blocked: credentials unpublished, clients not containerized |
+| Demo reachability | One command reaches a portal login screen with seeded data, using credentials published in the README | Blocked: credentials are now published and the API is one command, but the portal and cardholder are not yet containerized |
 | Provider extension | Published documentation walks an adopter through adding one notification and one audit custody provider | Source verified: `CONTRIBUTING.md`, honest that registration edits the host |
-| Architecture decisions | Every ADR referenced from a public file resolves to a public document | Blocked: 34 distinct ADR numbers are cited across tracked files in the four repositories and none resolve, because `docs/` is excluded from publication |
+| Architecture decisions | Every ADR referenced from a public file resolves to a public document | Source verified: `docs/DECISIONS.md` is published and `scripts/Test-DocumentationReferences.ps1` fails any citation that does not resolve |
 | Financial invariants | Balanced double entry, ledger-derived balances, idempotency, and forced RLS covered by the real-PostgreSQL suite | Source verified |
 | Static analysis | CodeQL green on the released commit in all four repositories | Source verified |
 | Release artifacts | Four versioned archives with SBOMs, checksums, and provenance attestation for the exact tagged commit | Source verified for the mechanism, unexercised on a real tag |

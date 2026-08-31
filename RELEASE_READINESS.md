@@ -57,8 +57,8 @@ same pin in their final metadata commits.
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests plus all three snapshots accept backend commit `a8a506a` and OpenAPI SHA-256 `DE48FE77...`; hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
-| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 421 integration tests; hosted CI green on `13c09e4` (run 32821994689), `8a88b7e` (run 32823947756) and `303232a` (run 32824704228) | Maintainer and CI |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests are now byte-identical and accept backend commit `a8a506a` and OpenAPI SHA-256 `DE48FE77...`, as do all three client snapshots and the backend's own baseline copy. The manifest no longer names the four `v0.5.0-rc.1` tags, which existed in no repository; schema 2 carries a development channel for that state and refuses a named tag that does not resolve locally. Hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
+| Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 426 integration tests, all passing at 0 build warnings. The 421 recorded earlier was correct at `1d2f224` and was not updated when `a8a506a` added `RequiredFieldContractTests`; three Row-Level Security posture tests were added since. Hosted CI green on `13c09e4` (run 32821994689), `8a88b7e` (run 32823947756) and `303232a` (run 32824704228) | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified at the current metadata commits: portal 104, cardholder 177, and POS 97 tests passed locally. All three client repositories triggered CI only on `push` to `main`, so no head on this branch had ever been built; the trigger is now `["**"]` as the backend already used. First hosted client builds on this branch are green: portal `eff2add` (run 32826630979), cardholder `5cf65ea` (run 32826636671) and POS `4fb1784` (run 32826642278) | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; the gate now accepts named HTTPS deployment endpoints, requires exact clean artifacts and pre-provisioned POS credentials, and emits checksum-protected redacted evidence; a real staging record remains | Maintainer |
 | Database change control | Separate migration and runtime roles; forward migration; startup against upgraded schema; rollback policy | Local source verified: explicit migrators own DDL; populated upgrade exposed and fixed an RLS-hidden payment backfill plus Windows Event Log masking; current and f80bab8 artifacts both reached readiness on the upgraded isolated restore; staging evidence remains | Maintainer and operator |
@@ -73,6 +73,37 @@ same pin in their final metadata commits.
 | Staging security | HTTPS, forwarded-header trust, secure cookies, CSP, no-store, least-privilege DB roles, dependency and code scanning | Source checks refuse insecure non-local smoke endpoints and verify a least-privilege runtime role plus forced RLS; no named staging environment has supplied TLS, proxy, cookie, header, or scanning evidence | Maintainer, security, and operator |
 | Human acceptance | Portal, cardholder, and POS primary journeys; keyboard, mobile, zoom, reduced motion, screen reader, and visual review | The fixed 17-check acceptance schema and checksum-protected recorder are implemented; a named human and operator pass is not recorded | Maintainer and reviewer |
 | Release publication | Clean public histories, signed or protected tags, release notes, compatibility manifest, upgrade and rollback notes | Blocked: canonical repositories have no public tags; rollback needs documented quota and phone-route compensating controls | Maintainer |
+
+## Blockers closed on 2026-08-31
+
+A release-readiness audit of all four repositories found four blockers that were
+not defects in the running system but were the difference between working
+software and a release someone else could adopt. All four are closed, and each
+is now defended by a check rather than by intention.
+
+1. **Architecture documentation was not published.** `docs/` was excluded from
+   publication wholesale while the tracked source carried 214 ADR citations
+   across 31 distinct numbers, none of which resolved for anyone but the
+   maintainer. Eleven documents are now published and six internal working
+   documents are excluded by name. `scripts/Test-DocumentationReferences.ps1`
+   fails a citation or a Markdown link that does not resolve.
+2. **The API stability promise was unenforced.** `scripts/Test-ApiCompatibility.ps1`
+   now diffs the served document against the accepted baseline and fails on the
+   forbidden-change list. Verified against six deliberately altered documents.
+3. **The upgrade safety promise was unenforced.** The `upgrade` job applies the
+   baseline's migrations to a populated database, then this build's, and checks
+   readiness, surviving value, and ledger balance.
+4. **The release manifest named tags that did not exist.** Schema 2 has a
+   development channel for an unreleased project, and refuses a named tag that
+   does not resolve.
+
+Two further gaps found in the same audit are also closed: the demonstration
+credentials are published in the README, and the Row-Level Security exemptions
+are documented in `SECURITY.md` and asserted against `pg_class` by
+`RowLevelSecurityPostureTests`.
+
+None of this changes the deployment position below. Nothing has been deployed
+anywhere, and every row that requires a named environment is still open.
 
 ## Required structural slices
 
