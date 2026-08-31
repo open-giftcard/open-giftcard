@@ -68,27 +68,27 @@ jobs:
       RELEASE_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.event_name == 'push' && github.ref_name || inputs.ref }}
     steps:
       - name: Check out backend
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: release-set/open-giftcard
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out portal
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-giftcard/open-giftcard-portal
           path: release-set/open-giftcard-portal
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out cardholder
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-giftcard/open-giftcard-cardholder
           path: release-set/open-giftcard-cardholder
           ref: ${{ env.RELEASE_REF }}
 
       - name: Check out POS
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-giftcard/open-giftcard-pos
           path: release-set/open-giftcard-pos
