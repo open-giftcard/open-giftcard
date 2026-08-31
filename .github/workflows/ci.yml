@@ -31,6 +31,13 @@ jobs:
         shell: pwsh
         run: ./scripts/Test-ReleaseContract.ps1
 
+      # The source cites ADRs by number. This fails when a citation in a tracked
+      # file has no published entry, which is what happened while docs/ was
+      # excluded from publication wholesale.
+      - name: Documentation references resolve
+        shell: pwsh
+        run: ./scripts/Test-DocumentationReferences.ps1
+
       - name: Staging acceptance evidence contract
         shell: pwsh
         run: ./scripts/Test-StagingAcceptanceRecord.ps1
@@ -141,6 +148,135 @@ jobs:
           echo "API never became ready"
           docker compose logs api
           exit 1
+
+      # VERSIONING.md promises /api/v1 will not break within 1.x and lists what
+      # that forbids. This is where the promise stops being a convention: the
+      # document this build serves is diffed against the accepted baseline in
+      # contracts/, and a forbidden change fails the build.
+      - name: API contract has no breaking changes
+        shell: pwsh
+        run: |
+          $port = (Select-String -Path .env -Pattern '^API_PORT=(.*)$').Matches.Groups[1].Value
+          if (-not $port) { $port = '5143' }
+          ./scripts/Test-ApiCompatibility.ps1 -CurrentUrl "http://127.0.0.1:$port/swagger/v1/swagger.json"
+
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs
+
+  upgrade:
+    name: A populated database upgrades to this build
+    runs-on: ubuntu-latest
+
+    # The second 1.0 promise is that any 1.x release applies cleanly on top of
+    # any earlier 1.x database. Migrations here are forward-only and carry raw
+    # SQL for policies, triggers and functions, so the failure mode is a
+    # migration that works on an empty database and not on a populated one. The
+    # single manual drill that had been done before this job existed found two
+    # real defects, which is the argument for running it every time.
+    steps:
+      - name: Check out with history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Create .env with the demonstration seed enabled
+        run: |
+          cp .env.example .env
+          python3 - <<'PY'
+          import re, secrets, base64, pathlib
+          path = pathlib.Path('.env')
+          text = path.read_text()
+          text = text.replace('change_me_locally_to_a_random_value_at_least_32_bytes',
+                              secrets.token_urlsafe(48))
+          text = text.replace('change_me_locally', secrets.token_urlsafe(24))
+          text = re.sub(r'^Partners__EpinDeliveryKey=.*$',
+                        'Partners__EpinDeliveryKey=' + base64.b64encode(secrets.token_bytes(32)).decode(),
+                        text, flags=re.M)
+          text = re.sub(r'^DEMO_SEED=.*$', 'DEMO_SEED=true', text, flags=re.M)
+          path.write_text(text)
+          PY
+          grep -q '^DEMO_SEED=true$' .env
+
+      # The baseline is whatever RELEASE_COMPATIBILITY.json accepts. Once tags
+      # exist this should become the previous release tag; the commit is used
+      # now because no repository has a tag yet, and a commit resolves.
+      - name: Resolve the upgrade baseline
+        id: baseline
+        run: |
+          commit=$(python3 -c "import json;print(json.load(open('RELEASE_COMPATIBILITY.json'))['backendContract']['commit'])")
+          head=$(git rev-parse HEAD)
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          echo "Upgrading from $commit to $head"
+          git cat-file -e "$commit^{commit}"
+          if [ "$commit" = "$head" ]; then
+            echo "The baseline is this commit, so there is nothing to upgrade."
+            exit 1
+          fi
+
+      - name: Bring up the baseline and populate it
+        run: |
+          git checkout --quiet --detach ${{ steps.baseline.outputs.commit }}
+          docker compose up --build --detach --wait --wait-timeout 600
+          docker inspect giftcard-migrations --format '{{.State.ExitCode}}' | grep -qx 0
+
+      - name: Confirm the baseline seeded real data
+        run: |
+          set -eu
+          # shellcheck disable=SC2046
+          export $(grep -E '^(POSTGRES_DB|POSTGRES_SUPERUSER)=' .env | xargs)
+          count=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
+            'select count(*) from ledger.entries')
+          echo "ledger entries after seed: $count"
+          test "$count" -gt 0
+
+      # Only the application is replaced. The database volume, and therefore the
+      # populated schema, is the one the baseline left behind.
+      - name: Apply this build's migrations over that database
+        run: |
+          git checkout --quiet --detach ${{ steps.baseline.outputs.head }}
+          git log --oneline -1
+          docker compose up --build --detach --wait --wait-timeout 600
+          code=$(docker inspect giftcard-migrations --format '{{.State.ExitCode}}')
+          docker logs giftcard-migrations
+          test "$code" = "0"
+
+      - name: The upgraded instance reports ready
+        run: |
+          port=$(grep -E '^API_PORT=' .env | cut -d= -f2)
+          port=${port:-5143}
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS "http://127.0.0.1:${port}/health/ready" || true)
+            if [ -n "$body" ]; then
+              echo "$body"
+              # Readiness returns 503 naming modules that are behind the build,
+              # so an upgrade that half-applied is caught here rather than at
+              # the first request that touches the missing column.
+              echo "$body" | grep -q 'migrations-pending' && { echo "schema is behind the build"; exit 1; }
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "the upgraded API never became ready"
+          docker compose logs api
+          exit 1
+
+      - name: The seeded data survived the upgrade
+        run: |
+          set -eu
+          # shellcheck disable=SC2046
+          export $(grep -E '^(POSTGRES_DB|POSTGRES_SUPERUSER)=' .env | xargs)
+          count=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
+            'select count(*) from ledger.entries')
+          echo "ledger entries after upgrade: $count"
+          test "$count" -gt 0
+          # Value is conserved across the upgrade: every ledger transaction
+          # still balances per currency.
+          unbalanced=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc \
+            "select count(*) from (select transaction_id, currency from ledger.entries group by transaction_id, currency having sum(case direction when 'Credit' then amount when 'Debit' then -amount else 0 end) <> 0) unbalanced")
+          echo "unbalanced ledger transactions: $unbalanced"
+          test "$unbalanced" = "0"
 
       - name: Compose logs on failure
         if: failure()
