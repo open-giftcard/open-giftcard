@@ -12,33 +12,33 @@ usable and are not listed.
 
 ### Added
 
-- **The architecture documentation is published.** Eleven documents that
+- The architecture documentation is published. Eleven documents that
   existed only on the maintainer's machine are now in the repository: the
   architecture, the 57 architecture decision records, the domain rules, the
   code map, the frontend integration guide, the project definition, the POS
   strategy report, the known issues, both demo documents, and an index. The
   source cites decisions by number 214 times across 31 distinct numbers, and
   none of those citations resolved for anyone but the maintainer.
-- **The API stability promise is enforced.** `scripts/Test-ApiCompatibility.ps1`
+- The API stability promise is enforced. `scripts/Test-ApiCompatibility.ps1`
   diffs the served OpenAPI document against the accepted baseline in
   `contracts/` and fails on the changes `VERSIONING.md` forbids within a major
   version. CI runs it against a real running instance.
-- **A populated database is upgraded on every build.** The `upgrade` job
+- A populated database is upgraded on every build. The `upgrade` job
   applies the accepted baseline's migrations, seeds through the demonstration
   seed, then applies this build's migrations over the same volume and requires
   readiness, surviving value, and balanced ledger transactions.
-- **Documentation references are checked.** A citation or relative link in a
+- Documentation references are checked. A citation or relative link in a
   tracked file that does not resolve fails the build.
-- **The portal and cardholder come up with the API.**
+- The portal and cardholder come up with the API.
   `docker compose -f docker-compose.yml -f docker-compose.full.yml up` adds the
   two browser clients, their session databases with split migration and runtime
   roles, and their migration containers. Each client repository gained a
   Dockerfile mirroring the backend's.
-- **Row-Level Security posture is asserted.** `RowLevelSecurityPostureTests`
+- Row-Level Security posture is asserted. `RowLevelSecurityPostureTests`
   checks every table in the twelve module schemas against `pg_class`, so a new
   tenant table cannot be added without either a forced policy or a reviewed
   exemption recorded in `SECURITY.md`.
-- **A fresh clone is rehearsed.** `scripts/Test-FreshCloneRehearsal.ps1` clones
+- A fresh clone is rehearsed. `scripts/Test-FreshCloneRehearsal.ps1` clones
   HEAD and checks what a stranger actually receives, rather than reading a
   working tree that contains untracked files they will never see.
 - The demonstration credentials are in `README.md`, with the login and
@@ -58,14 +58,14 @@ usable and are not listed.
 
 ### Changed
 
-- **`RELEASE_COMPATIBILITY.json` no longer names tags that do not exist.** It
+- `RELEASE_COMPATIBILITY.json` no longer names tags that do not exist. It
   declared release `v0.5.0-rc.1` and gave all four components that tag, and no
   repository has ever had a public tag. Schema version 2 adds a `development`
   channel for that state, and on a released channel now requires the tag it
   names to resolve locally. The manifest is also byte-identical in all four
   repositories for the first time; it had been CRLF in the backend and LF in
   the other three.
-- **Branding is no longer promised for 1.0.** `VERSIONING.md` said an adopter
+- Branding is no longer promised for 1.0. `VERSIONING.md` said an adopter
   could rebrand through configuration by 1.0. No such configuration was ever
   built, so the promise is withdrawn to an explicit non-goal and noted as
   planned afterwards, rather than carried unbuilt.
