@@ -301,18 +301,36 @@ which documented records are current.
 1. Adopt this roadmap and its audit as product-direction records.
 2. Define 1.0 as generalized adoptability plus API and upgrade stability, not as
    feature completeness for the original supermarket alone.
-3. Replace the non-monotonic future `v0.5.0` naming with a monotonic pre-1.0 line
-   or a separate deployment-certification label.
-4. Publish one current capability and limitation matrix for all components.
-5. Split current documentation from archived plans, handoffs, reviews, and
-   superseded research.
+3. ~~Replace the non-monotonic future `v0.5.0` naming with a monotonic pre-1.0
+   line or a separate deployment-certification label.~~ **Done, by the second
+   option.** `v0.5.0` is retired as a version. Deployment certification is now a
+   label applied to a release, written `v0.9.1 (deployment certified)`, so
+   certifying somebody's infrastructure and committing to API stability are no
+   longer the same claim and neither waits for the other. `VERSIONING.md`
+   records why the old row was a mistake in kind and not only in ordering.
+4. ~~Publish one current capability and limitation matrix for all components.~~
+   **Done.** `docs/CAPABILITIES.md` covers every capability in six states, of
+   which the three that carry the weight are implemented, reference
+   implementation, and operator responsibility. Nothing is marked implemented
+   for having code; where a guarantee rests on a database constraint or a
+   withheld privilege rather than on application code, the row says which.
+5. ~~Split current documentation from archived plans, handoffs, reviews, and
+   superseded research.~~ **Done.** Six working documents are local-only and the
+   rest of `docs/` is published behind the index in `docs/README.md`. The split
+   is enforced rather than described: CI fails on an unresolvable ADR citation
+   or a broken relative link, which is what stops the published set from
+   silently referring to the archived one.
 6. ~~Extract ADRs into independently linkable records~~ **Done, by the second
    option.** `docs/DECISIONS.md` is published and CI fails any `ADR-nnn` cited
    in a tracked file that has no entry in it. Splitting 57 records into separate
    files would break 214 existing citations across the source to produce the
    same resolvability the index already provides, so it is dropped rather than
    deferred.
-7. Reconcile current release/tag claims across backend and client repositories.
+7. ~~Reconcile current release/tag claims across backend and client
+   repositories.~~ **Done.** All four repositories are at `v0.9.1` with
+   byte-identical compatibility manifests, and the contract pin is validated in
+   CI in each of them rather than asserted. The `v1.0.0` that was cut and
+   retracted on the same day is recorded in `VERSIONING.md` instead of erased.
 8. Record the current OpenAPI contract defects and client-validation blind spots
    as release blockers. **Partly done.** Money was declared as `number/double`
    on 53 schema fields, and the portal's generated client consequently held all
@@ -338,6 +356,27 @@ which documented records are current.
 - The threat model and unresolved high-risk decisions are public.
 - No implementation milestone depends on an undefined meaning of tenant,
   program, issuer, merchant, or service principal.
+
+### Where M0 stands, 2026-09-07
+
+The first three gate lines are met. `RELEASE_COMPATIBILITY.json` names the
+current release, `VERSIONING.md` states what the number promises and what the
+retracted `v1.0.0` was, and the published documentation set agrees with the tags
+because CI checks that it does rather than because somebody read it over.
+
+Three lines are open, and they are open for different reasons.
+
+The compatibility promises cover HTTP and migrations but not events, profiles or
+adapters, because none of those surfaces exists yet. That line cannot close
+before M5 defines what an adapter contract is, and writing promises about them
+now would be inventing a surface to promise about.
+
+The threat model is unstarted. It is the one M0 item that needs neither a
+decision nor a later milestone, so it is the next thing to do here.
+
+The last line closes in M1 by construction: program, participant and issuer get
+their definitions there. It is listed under M0 because M0 is where the absence
+of those definitions was noticed, not because M0 can supply them.
 
 ## M1 — Programs, policies, and participants
 
