@@ -1,58 +1,96 @@
-# Digital Corporate Gift Card Platform
+# Open Giftcard
 
-Secure, multi-tenant platform that digitizes corporate gift cards. Built as a
-modular monolith on .NET 10, ASP.NET Core, and PostgreSQL.
+A multi-tenant stored-value platform: issue gift cards, distribute them, let
+people hold and split them, take payment at a till, refund it, and reconcile the
+whole thing against a double-entry ledger. Modular monolith on .NET 10, ASP.NET
+Core and PostgreSQL, with three reference clients.
 
-This README gets you running. [`docs/`](docs/README.md) explains how the system
-is built and why: the architecture, the domain rules, the code map, and the
-architecture decision records the source cites by number.
+```bash
+cp .env.example .env && docker compose up
+```
 
-The code is the authority over all of it. Where a document and the
-implementation disagree, the architecture tests, the migrations, and the
-integration suite describe the system precisely, and the document is wrong.
+That is the whole first run. CI executes those exact instructions on every build
+and fails if a clean clone would not reach a healthy, migrated API, so the
+command above cannot quietly stop working.
 
-## Current state
+## What is worth looking at
 
-All four functional phases are implemented. The current release is
-**`v0.9.1`**, cut across all four repositories at the same commit set and
-recorded in [`RELEASE_COMPATIBILITY.json`](RELEASE_COMPATIBILITY.json).
-`v0.9.0` was the first tag this project ever published, an hour earlier; it
-named a commit whose own CI failed, and `v0.9.1` is the corrected release.
+If you only read one thing, make it
+[`docs/DECISIONS.md`](docs/DECISIONS.md) or the ledger migration. The parts
+below are where this project spends its effort.
 
-`v0.9.1` is still `0.x`, and it is worth being precise about what that buys you.
-It means the source is complete and checks its own claims: the API contract, the
-upgrade path, and every architecture decision the code cites are enforced or
-published rather than asserted. It does **not** mean the API is stable, that an
-upgrade path has been exercised, or that anything has been deployed anywhere.
-Pin by tag if you want a fixed point; expect it to move under you until 1.0.
+**Money is enforced by the database, not by good intentions.** Every value
+movement is a balanced double-entry posting. Balance is checked in the domain
+and again by a `deferrable initially deferred` constraint trigger that evaluates
+the completed transaction, verifying per-currency balance, minimum entry count,
+and that every entry agrees with both its account and its transaction. Balances
+are derived by summing entries; no mutable balance column is authoritative
+anywhere.
 
-[`VERSIONING.md`](VERSIONING.md) states what each number commits this project
-to. In short: `v0.5.0` means it has been deployed to a named environment with
-the evidence recorded, and `v1.0.0` means `/api/v1` is stable and upgrades
-within 1.x are safe. Both are still open, they are independent of each other,
-and neither is a production warranty.
+**The application cannot rewrite financial history.** Migrations run as an
+owner role; the application runs as a role that owns nothing, holds no DDL
+privilege, and has `SELECT` and `INSERT` on the ledger and audit schemas with no
+`UPDATE` and no `DELETE`. Immutability is a grant, not a convention.
 
-An earlier revision of this section announced a synchronized candidate
-`v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags
-exist only in the private repositories this project was developed in and were
-never published. The public repositories were created from a squashed initial
-commit, so nothing in that table could be resolved here. The `v0.9.x` tags are
-unrelated to them and are the first any of these repositories has carried.
+**Tenant isolation is PostgreSQL Row-Level Security, not application
+filtering.** 27 tables carry RLS, forced everywhere it can be forced, with the
+single exception reasoned out in ADR-023 and asserted by a test. A
+client-supplied organization header is only ever a *candidate*: the request
+stays unauthenticated until an active membership is resolved from the database,
+behind RLS, on an independent connection.
+
+**Concurrency is tested, not assumed.** Value-changing work runs at
+`SERIALIZABLE` behind advisory locks with `xmin` concurrency tokens, and the
+suite covers concurrent redemption, concurrent claim, concurrent issuance
+against one credit balance, concurrent duplicate cancellation, and refresh-token
+reuse. Idempotency is a unique index plus an intent hash, so replaying a key
+with different intent is refused rather than silently returning the earlier
+result.
+
+**684 tests, 426 of them against real PostgreSQL.** The EF in-memory and SQLite
+providers cannot enforce RLS, so there is no substitute and none is used. CI
+also brings up the entire product, all eight services, and signs in through the
+portal with the credentials published below.
+
+**Every architecture decision the source cites resolves.** The code references
+decisions by number, `(ADR-019)` and so on, 214 times. All 57 records are
+published, and CI fails any citation that does not resolve.
+
+## Where it came from, and what it is not
+
+One person built this, starting as an internship project and continuing after
+the original scope ended. The company-specific material was removed before
+publication.
+
+**It has never been deployed anywhere.** Not once. Everything above is verified
+from source and in CI, which is a real but narrower claim than "it runs in
+production". There is no staging environment, no TLS termination, no operator
+evidence, and nothing here should be read as a production-readiness claim.
+[`SECURITY.md`](SECURITY.md) lists the gaps in detail rather than leaving them
+to be discovered.
+
+It is also `0.x`. The current release is `v0.9.1`, cut across all four
+repositories at one commit set.
+[`VERSIONING.md`](VERSIONING.md) says exactly what each number promises: in
+short, `v0.5.0` would mean deployed with evidence recorded and `v1.0.0` would
+mean `/api/v1` is stable, and both are still open. A `v1.0.0` was cut and
+retracted on 2026-09-07 when a scope audit concluded the contract was not ready
+to freeze; that is recorded in `VERSIONING.md` rather than erased.
+
+## Reading further
+
+[`docs/`](docs/README.md) is the architecture, the domain rules, the code map,
+and the decision records. The code is the authority over all of it: where a
+document and the implementation disagree, the architecture tests, the
+migrations, and the integration suite describe the system precisely, and the
+document is wrong.
 
 Each client repository pins its own capture of the backend OpenAPI document
-under `contracts/`, and each `contracts/README.md` records the backend commit
-and SHA-256 it was taken from, verified in CI. Those files are the authority for
-client-to-backend compatibility.
+under `contracts/`, recording the backend commit and SHA-256 it came from, and
+CI verifies the pin. Those files are the authority for client-to-backend
+compatibility.
 
-Nothing here has been deployed anywhere. See "What is not done" below, and the
-honest gap list in `SECURITY.md`.
-
-The working gate for the first four-repository public candidate is
-[`RELEASE_READINESS.md`](RELEASE_READINESS.md). It records required source,
-deployment, operator, recovery, and human evidence without treating a target
-version as a completed release.
-
-### What works
+## What works
 
 **Foundation.** Global identities with email or E.164 phone login, password
 hashing, 15-minute JWTs and rotating 30-day refresh tokens with reuse
@@ -95,9 +133,10 @@ outbox *inside* the business transaction, so a message becomes durable exactly
 when the distribution does. A dispatcher delivers with bounded retry, backoff,
 and dead-lettering. An SMTP sender ships for demonstrations.
 
-### What is not done
+## What is not done
 
-This is not deployment-certified, and the remaining gaps are explicit:
+The honest gap list. Each of these is a deliberate boundary rather than an
+oversight, and `SECURITY.md` covers the security-weighted ones in more detail:
 
 - **Managed audit custody.** The `RemoteHttp` provider signs and publishes
   through a separately operated custody gateway over mutual TLS, so the
@@ -125,7 +164,7 @@ Deployment gates are summarised under *What is not done* above. See the tracked
 [deployment guide](docs/DEPLOYMENT.md) for the native archive, migration,
 staging evidence, recovery, and rollback procedures.
 
-### Client boundary
+## Client boundary
 
 The portal and cardholder applications are separate repositories that consume
 the versioned OpenAPI contract. Browser deployments use a same-origin BFF that
