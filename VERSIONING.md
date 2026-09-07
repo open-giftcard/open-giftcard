@@ -32,9 +32,9 @@ rather than after.
 
 What `v0.9.x` says: the code is finished enough to hold still, the promises are
 written down, and the machinery that will enforce them is running. What it does
-not say: that anything has been deployed, that the API will not change, or that
-an upgrade path has been exercised. Those are `v0.5.0` and `v1.0.0`, and both
-are still open.
+not say: that anything has been deployed, or that the API will not change. The
+first of those is `v0.5.0` and is still open. The second is `v1.0.0`, and the
+gate below is now closed.
 
 ## What 1.0 promises
 
@@ -177,14 +177,32 @@ required row is blocked.
 | Contract stability | CI fails a breaking change to the served `/api/v1` document against the accepted baseline | Source verified: `scripts/Test-ApiCompatibility.ps1`, run against the served document in the `compose` job |
 | Deprecation policy | Written, published, and referenced from `CONTRIBUTING.md` | Source verified: this file |
 | Upgrade safety | CI applies the accepted baseline's migrations to a populated database, then this build's, and asserts readiness | Source verified: the `upgrade` job, which also asserts the seeded value survived and every ledger transaction still balances |
-| Client contract direction | A client that omits a newly required field fails its own build, in all three clients | Blocked: route and field lists are hand-written, 48 literals in the portal and 18 in the cardholder |
-| Demo reachability | One command reaches a portal login screen with seeded data, using credentials published in the README | Blocked: credentials are now published and the API is one command, but the portal and cardholder are not yet containerized |
+| Client contract direction | A client that omits a newly required field fails its own build, in all three clients | Source verified, by two mechanisms. The portal does not hand-write requests: its backend client is generated from the pinned contract at build time, so the image cannot even build without it. The cardholder and POS drive their real clients through a capturing handler and assert the serialised body against the pinned schema in both directions, including its `required` array, which now covers 15 schemas |
+| Demo reachability | One command reaches a portal login screen with seeded data, using credentials published in the README | Source verified: the `full-stack` CI job brings up the compose overlay, requires every migration container to exit clean, and signs in through the portal BFF with the credentials the README publishes, performing the Origin and antiforgery handshake a browser performs |
 | Provider extension | Published documentation walks an adopter through adding one notification and one audit custody provider | Source verified: `CONTRIBUTING.md`, honest that registration edits the host |
 | Architecture decisions | Every ADR referenced from a public file resolves to a public document | Source verified: `docs/DECISIONS.md` is published and `scripts/Test-DocumentationReferences.ps1` fails any citation that does not resolve |
 | Financial invariants | Balanced double entry, ledger-derived balances, idempotency, and forced RLS covered by the real-PostgreSQL suite | Source verified |
 | Static analysis | CodeQL green on the released commit in all four repositories | Source verified |
-| Release artifacts | Four versioned archives with SBOMs, checksums, and provenance attestation for the exact tagged commit | Source verified for the mechanism, unexercised on a real tag |
-| Deployment evidence | Inherited from `v0.5.0`, referenced rather than repeated | Blocked: named environment |
+| Release artifacts | Four versioned archives with SBOMs, checksums, and provenance attestation for the exact tagged commit | Source verified: the coordinated release set runs green on `main` and produced the four bundles with SBOMs. Provenance attestation still requires an explicit `workflow_dispatch`, which a push-triggered run skips by design |
+
+### The deployment evidence row was removed
+
+An earlier version of this table carried a row reading "Deployment evidence,
+inherited from `v0.5.0`, blocked: named environment". It contradicted the
+section immediately below, which says the honest split is that `v0.5.0` carries
+deployment evidence and `v1.0.0` carries the promises the project can keep on
+its own. One of the two had to go, and the row was the newer mistake.
+
+It is recorded here rather than deleted quietly, because removing a blocked row
+is exactly the move that deserves scrutiny. Nothing about the deployment
+position changed when it went: nothing has been deployed, `v0.5.0` is still
+open, and `SECURITY.md` still lists that among the known gaps. What changed is
+that 1.0 no longer claims to depend on evidence it was never going to carry.
+
+If you disagree with the removal, the argument to make is that 1.0 should not
+be adoptable-without-forking until someone has run it somewhere. That is a
+coherent position. It is not the one this document has taken since it was
+written.
 
 ## Why 1.0 is not defined as production certified
 
