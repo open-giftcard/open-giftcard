@@ -164,6 +164,115 @@ jobs:
         if: failure()
         run: docker compose logs
 
+  full-stack:
+    name: The whole product comes up and the portal serves a login screen
+    runs-on: ubuntu-latest
+
+    # The 1.0 gate asks that one command reaches a portal login screen with
+    # seeded data, using the credentials published in the README. That cannot be
+    # verified on a developer machine without Docker, so it is proven here, the
+    # same way the single-service compose path already is.
+    #
+    # The overlay expects the client repositories as siblings. actions/checkout
+    # will only place a repository inside the workspace, so they are checked out
+    # under clients/ and the build contexts are pointed at them.
+    steps:
+      - name: Check out the backend
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Check out the portal
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: open-giftcard/open-giftcard-portal
+          path: clients/open-giftcard-portal
+
+      - name: Check out the cardholder
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: open-giftcard/open-giftcard-cardholder
+          path: clients/open-giftcard-cardholder
+
+      - name: Create .env with the demonstration seed enabled
+        run: |
+          cp .env.example .env
+          python3 - <<'PY'
+          import re, secrets, base64, pathlib
+          path = pathlib.Path('.env')
+          text = path.read_text()
+          text = text.replace('change_me_locally_to_a_random_value_at_least_32_bytes',
+                              secrets.token_urlsafe(48))
+          text = text.replace('change_me_locally', secrets.token_urlsafe(24))
+          text = re.sub(r'^Partners__EpinDeliveryKey=.*$',
+                        'Partners__EpinDeliveryKey=' + base64.b64encode(secrets.token_bytes(32)).decode(),
+                        text, flags=re.M)
+          text = re.sub(r'^DEMO_SEED=.*$', 'DEMO_SEED=true', text, flags=re.M)
+          path.write_text(text)
+          PY
+          grep -q '^DEMO_SEED=true$' .env
+
+      - name: Bring up the whole product
+        env:
+          PORTAL_CONTEXT: ./clients/open-giftcard-portal
+          CARDHOLDER_CONTEXT: ./clients/open-giftcard-cardholder
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.full.yml             up --build --detach --wait --wait-timeout 900
+
+      - name: Every migration container exited cleanly
+        run: |
+          for container in giftcard-migrations giftcard-client-databases                            giftcard-portal-migrations giftcard-cardholder-migrations; do
+            code=$(docker inspect "$container" --format '{{.State.ExitCode}}')
+            echo "$container exit code: $code"
+            if [ "$code" != "0" ]; then docker logs "$container"; exit 1; fi
+          done
+
+      - name: The portal serves a login screen
+        run: |
+          port=$(grep -E '^PORTAL_PORT=' .env | cut -d= -f2); port=${port:-5179}
+          curl -fsS "http://127.0.0.1:${port}/health/ready" && echo
+          body=$(curl -fsS "http://127.0.0.1:${port}/")
+          echo "$body" | head -5
+          # The BFF serves the single-page application from its own wwwroot.
+          echo "$body" | grep -q '<title>Open Giftcard Portal</title>'
+          echo "portal is serving its application shell"
+
+      - name: The seeded company administrator can sign in through the portal
+        run: |
+          port=$(grep -E '^PORTAL_PORT=' .env | cut -d= -f2); port=${port:-5179}
+          # The credentials the README publishes. If this step fails, the README
+          # is wrong, which is the failure this job exists to catch.
+          status=$(curl -sS -o /tmp/login.json -w '%{http_code}'             -X POST "http://127.0.0.1:${port}/bff/auth/login"             -H 'Content-Type: application/json'             -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}' || true)
+          echo "portal login status: $status"
+          head -c 400 /tmp/login.json || true
+          echo
+          # 200 or nothing. The portal reached the backend, the backend accepted
+          # the credentials the README publishes, and the BFF built a session.
+          # Anything else means the documented first run does not work.
+          test "$status" = "200"
+          grep -q 'company.admin@example.test' /tmp/login.json
+          echo "the published credentials sign in through the portal"
+
+
+      - name: The cardholder is serving
+        run: |
+          port=$(grep -E '^CARDHOLDER_PORT=' .env | cut -d= -f2); port=${port:-5180}
+          curl -fsS "http://127.0.0.1:${port}/health/ready" && echo
+          code=$(curl -fsS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/")
+          echo "cardholder root: $code"
+
+      - name: The seed produced real value
+        run: |
+          set -eu
+          # shellcheck disable=SC2046
+          export $(grep -E '^(POSTGRES_DB|POSTGRES_SUPERUSER)=' .env | xargs)
+          entries=$(docker exec giftcard-postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -tAc             'select count(*) from ledger.entries')
+          echo "ledger entries: $entries"
+          test "$entries" -gt 0
+
+      - name: Compose logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.full.yml logs
+
   upgrade:
     name: A populated database upgrades to this build
     runs-on: ubuntu-latest

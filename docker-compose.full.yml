@@ -13,6 +13,10 @@
 #   open-giftcard-portal/
 #   open-giftcard-cardholder/
 #
+# PORTAL_CONTEXT and CARDHOLDER_CONTEXT override those two paths. Nothing local
+# needs them; CI does, because actions/checkout will only place a repository
+# inside the workspace, so the siblings cannot literally be siblings there.
+#
 # Set DEMO_SEED=true in .env first, or the portal has nothing to show and no
 # account to sign in with. The credentials are in README.md.
 #
@@ -53,7 +57,7 @@ services:
 
   portal-migrations:
     build:
-      context: ../open-giftcard-portal
+      context: ${PORTAL_CONTEXT:-../open-giftcard-portal}
     image: open-giftcard-portal
     container_name: giftcard-portal-migrations
     depends_on:
@@ -69,7 +73,7 @@ services:
 
   portal:
     build:
-      context: ../open-giftcard-portal
+      context: ${PORTAL_CONTEXT:-../open-giftcard-portal}
     image: open-giftcard-portal
     container_name: giftcard-portal
     depends_on:
@@ -100,7 +104,7 @@ services:
 
   cardholder-migrations:
     build:
-      context: ../open-giftcard-cardholder
+      context: ${CARDHOLDER_CONTEXT:-../open-giftcard-cardholder}
     image: open-giftcard-cardholder
     container_name: giftcard-cardholder-migrations
     depends_on:
@@ -116,7 +120,7 @@ services:
 
   cardholder:
     build:
-      context: ../open-giftcard-cardholder
+      context: ${CARDHOLDER_CONTEXT:-../open-giftcard-cardholder}
     image: open-giftcard-cardholder
     container_name: giftcard-cardholder
     depends_on:
