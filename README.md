@@ -13,6 +13,55 @@ That is the whole first run. CI executes those exact instructions on every build
 and fails if a clean clone would not reach a healthy, migrated API, so the
 command above cannot quietly stop working.
 
+## What it looks like
+
+Everything below is the demonstration seed driving the four real applications.
+No mockups.
+
+![A cardholder shows a payment code and the till takes payment against it](media/02-payment-journey.gif)
+
+**The whole loop.** A cardholder presents a single-use code and the till takes
+payment against it. The till never learns the card number, its owner, or its
+balance: the code is opaque and the platform resolves it server-side.
+
+### The cardholder application
+
+It ships **no JavaScript bundle**. The flip, the countdown, and the expiry blur
+are CSS, and all of them respect `prefers-reduced-motion`.
+
+| | | |
+| --- | --- | --- |
+| ![A gift card turning over](media/01-card-flip.gif) | ![The back of the card showing its actions](media/06-details-expand.gif) | ![A payment code expiring, its QR blurring out](media/03-countdown-expiry.gif) |
+| **The card turns over** in CSS, at the real proportions of a physical card. | **Its back carries the actions.** Balances are described as the platform's record, not the card's. | **The code dies after 60 seconds** and the QR blurs rather than sitting there looking usable. |
+
+| | |
+| --- | --- |
+| ![An expired code being renewed](media/04-code-renewal.gif) | ![The checkout screen with QR, countdown and a 12-digit code](media/09-cardholder-card.jpg) |
+| **Renewal is deliberate**, never automatic, so a code is only ever live because someone asked for it. | **A 12-digit fallback** sits under the QR, because scanners fail and a phone screen in a shop is not always readable. |
+
+### The operator portal
+
+![The card register, with recipient contacts masked](media/07-portal-inventory.jpg)
+
+**Recipient contacts are masked and the remaining balance of a card someone
+already owns is not reported at all.** The organization that funded a card is not
+entitled to watch its holder spend it. That boundary is visible in the interface
+rather than buried in a policy document.
+
+| | |
+| --- | --- |
+| ![Organization-owned card inventory](media/05-portal-issue-card.gif) | ![Financial reconciliation reporting no inconsistencies](media/08-portal-reporting.jpg) |
+| **Inventory holds only what the organization still owns.** A card leaves it the moment it reaches someone, and the public reference is for support, not payment. | **Reconciliation is computed by the backend**; the portal only displays the result. Note the verified organization context: the client asks, the server decides. |
+
+### The till
+
+![The till taking a payment against a gift card](media/10-pos-till.jpg)
+
+**Deliberately thin.** Repeating a sale reference retries the same sale rather
+than charging twice, so idempotency is surfaced in the product and not only in
+the API. As the footer of that screen puts it: the platform holds every
+financial rule, and this screen only shows what it decided.
+
 ## What is worth looking at
 
 If you only read one thing, make it
