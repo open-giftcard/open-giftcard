@@ -87,8 +87,10 @@ function Read-VerifiedSmokeEvidence([string]$Path) {
         }
     }
 
-    if ([string]$smoke.release.release -notmatch '^v\d+\.\d+\.\d+-rc\.\d+$' -or
-        [string]$smoke.release.artifactManifestSha256 -notmatch '^[0-9A-F]{64}$' -or
+    if ([string]$smoke.release.release -notmatch '^v\d+\.\d+\.\d+(-rc\.\d+)?$') {
+        throw "Automated smoke evidence release '$($smoke.release.release)' is not a semantic version such as v1.0.0 or v0.5.0-rc.1."
+    }
+    if ([string]$smoke.release.artifactManifestSha256 -notmatch '^[0-9A-F]{64}$' -or
         [string]$smoke.release.releaseContractSha256 -notmatch '^[0-9A-F]{64}$' -or
         [string]$smoke.release.backendOpenApiSha256 -notmatch '^[0-9A-F]{64}$' -or
         @($smoke.release.components).Count -ne 4) {

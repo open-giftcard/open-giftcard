@@ -98,8 +98,8 @@ function Get-ArtifactSetEvidence {
     if ([bool]$manifest.rehearsal) {
         throw 'A rehearsal artifact set cannot certify a deployment.'
     }
-    if ([string]$manifest.release -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$') {
-        throw "Artifact manifest release '$($manifest.release)' is invalid."
+    if ([string]$manifest.release -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$') {
+        throw "Artifact manifest release '$($manifest.release)' is not a semantic version such as v1.0.0 or v0.5.0-rc.1."
     }
 
     $expectedComponents = @('backend', 'portal', 'cardholder', 'pos')

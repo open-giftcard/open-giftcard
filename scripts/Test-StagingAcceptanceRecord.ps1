@@ -84,6 +84,43 @@ try {
         throw 'A complete staging review did not create eligible evidence.'
     }
 
+    # A final release must be accepted. Until 2026-09-07 the recorder required an
+    # -rc. suffix, so it refused every release this project actually cuts and said
+    # only 'incomplete release identity'. Nothing would have found that before the
+    # staging session it was written for.
+    $smoke.release.release = 'v1.0.0'
+    $finalSmokePath = Join-Path $testRoot 'final-smoke.json'
+    Write-Json $finalSmokePath $smoke
+    Write-SmokeSidecar $finalSmokePath
+    $finalPath = Join-Path $testRoot 'final.json'
+    & (Join-Path $PSScriptRoot 'New-StagingAcceptanceRecord.ps1') `
+        -AutomatedSmokeEvidencePath $finalSmokePath `
+        -ReviewPath $reviewPath `
+        -OutputPath $finalPath
+    $final = Get-Content -LiteralPath $finalPath -Raw | ConvertFrom-Json
+    if (-not [bool]$final.promotion.eligible -or
+        [string]$final.release.release -cne 'v1.0.0') {
+        throw 'A final release was not accepted as staging evidence.'
+    }
+
+    $smoke.release.release = 'v1.0'
+    $malformedSmokePath = Join-Path $testRoot 'malformed-smoke.json'
+    Write-Json $malformedSmokePath $smoke
+    Write-SmokeSidecar $malformedSmokePath
+    try {
+        & (Join-Path $PSScriptRoot 'New-StagingAcceptanceRecord.ps1') `
+            -AutomatedSmokeEvidencePath $malformedSmokePath `
+            -ReviewPath $reviewPath `
+            -OutputPath (Join-Path $testRoot 'malformed.json')
+        throw 'A malformed release version unexpectedly passed.'
+    }
+    catch {
+        if ($_.Exception.Message -notlike '*is not a semantic version*') {
+            throw
+        }
+    }
+    $smoke.release.release = 'v0.5.0-rc.1'
+
     $review.decision = 'reject'
     $review.checks[0].result = 'not-run'
     $review.blockingIssues = @('Test blocker')
