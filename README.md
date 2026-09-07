@@ -121,8 +121,9 @@ to be discovered.
 It is also `0.x`. The current release is `v0.9.1`, cut across all four
 repositories at one commit set.
 [`VERSIONING.md`](VERSIONING.md) says exactly what each number promises: in
-short, `v0.5.0` would mean deployed with evidence recorded and `v1.0.0` would
-mean `/api/v1` is stable, and both are still open. A `v1.0.0` was cut and
+short, `v1.0.0` would mean `/api/v1` is stable and upgrades within 1.x are safe,
+and that is still open. Deployment evidence is tracked separately, as a label on
+a release rather than as a version of its own, and no release carries it. A `v1.0.0` was cut and
 retracted on 2026-09-07 when a scope audit concluded the contract was not ready
 to freeze; that is recorded in `VERSIONING.md` rather than erased.
 

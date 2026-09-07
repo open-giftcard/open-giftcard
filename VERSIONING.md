@@ -14,14 +14,28 @@ document, never one repository on its own.
 | --- | --- |
 | `0.x` | No promises. The API, the schema, and the configuration may all change. Pin by commit. |
 | `v0.9.x` | The source is complete and self-verifying. Every promise 1.0 will make is either enforced in CI or explicitly withdrawn, and the documentation to check that is published. Still 0.x: no stability promise, and nothing has been deployed. |
-| `v0.5.0` | It runs. The candidate has been deployed to a named environment and the evidence is recorded. Still no stability promise. |
 | `v1.0.0` | It is stable and adoptable. The three promises below take effect. |
 | `1.x` | Additive change only, under the deprecation policy below. |
 | `2.0.0` | Reserved for a breaking API change, served as `/api/v2` alongside `/api/v1`. |
 
-`v0.5.0` and `v1.0.0` are independent. Certifying a deployment and committing to
-stability are different claims, they are blocked on different things, and
-neither has to wait for the other.
+### Deployment certification is a label, not a version
+
+This table used to carry a `v0.5.0` row meaning "it has been deployed to a named
+environment and the evidence is recorded". That was a mistake in kind, not only
+in ordering. It made a statement about somebody's infrastructure into a point on
+this project's version line, and once `v0.9.0` was tagged the number became
+unreachable: 0.5.0 sorts below 0.9.1, so it could never be released without
+going backwards.
+
+Deployment certification is now a **label applied to a release**, written as
+`v0.9.1 (deployment certified)`. It says a specific artifact set has run in a
+named environment and the evidence is recorded. It is orthogonal to the version:
+any release can carry it, carrying it changes no promise about the API, and not
+carrying it says nothing about code quality.
+
+Certifying a deployment and committing to API stability remain different claims,
+blocked on different things, and neither waits for the other.
+`RELEASE_READINESS.md` is the gate for the label. No release carries it yet.
 
 `v0.9.x` sits outside that pair deliberately. It is the first tag line this
 project has cut, and it exists because two of the checks below cannot work
@@ -213,14 +227,15 @@ required row is blocked.
 
 An earlier version of this table carried a row reading "Deployment evidence,
 inherited from `v0.5.0`, blocked: named environment". It contradicted the
-section immediately below, which says the honest split is that `v0.5.0` carries
-deployment evidence and `v1.0.0` carries the promises the project can keep on
-its own. One of the two had to go, and the row was the newer mistake.
+section immediately below, which says the honest split is that deployment
+evidence is one claim and the promises this project can keep on its own are
+another. One of the two had to go, and the row was the newer mistake.
 
 It is recorded here rather than deleted quietly, because removing a blocked row
 is exactly the move that deserves scrutiny. Nothing about the deployment
-position changed when it went: nothing has been deployed, `v0.5.0` is still
-open, and `SECURITY.md` still lists that among the known gaps. What changed is
+position changed when it went: nothing has been deployed, no release carries the
+deployment certified label, and `SECURITY.md` still lists that among the known
+gaps. What changed is
 that 1.0 no longer claims to depend on evidence it was never going to carry.
 
 If you disagree with the removal, the argument to make is that 1.0 should not
@@ -231,7 +246,7 @@ written.
 ## Why 1.0 is not defined as production certified
 
 It would make the version number depend on infrastructure this project does not
-own and cannot inspect. The honest split is that `v0.5.0` carries the deployment
-evidence for one named environment, and `v1.0.0` carries the promises the
-project can keep on its own: a stable API, a safe upgrade, and a system someone
-else can adopt without forking it.
+own and cannot inspect. The honest split is that the deployment certified label
+carries the evidence for one named environment, and `v1.0.0` carries the
+promises the project can keep on its own: a stable API, a safe upgrade, and a
+system someone else can adopt without forking it.

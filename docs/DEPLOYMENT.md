@@ -1,7 +1,7 @@
 # Backend Deployment Contract
 
-This document describes the authoritative API member of `v0.5.0-rc.1`. It is a
-source release-candidate contract. It does not create or claim ownership of a
+This document describes the authoritative API member of the coordinated release
+set, currently `v0.9.1`. It is a source contract. It does not create or claim ownership of a
 hosting platform, DNS zone, certificate, secret manager, PostgreSQL service, or
 notification provider.
 
@@ -329,7 +329,7 @@ release-critical rules is firing. Its output never includes the bearer token.
 
 Before promotion:
 
-1. Verify the downloaded `v0.5.0-rc.1` artifact set and record all four embedded
+1. Verify the downloaded artifact set for the release being deployed, and record all four embedded
    commit hashes, the shared release-contract hash, ZIP hashes, and SBOM hashes.
 2. Apply migrations as the migrator, start the API as the app role, verify both
    health endpoints, and confirm Development-only endpoints return 404.
