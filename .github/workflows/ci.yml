@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Release compatibility contract
         shell: pwsh
@@ -51,7 +51,7 @@ jobs:
       # Resolved from global.json so CI uses the same SDK family as local
       # development, rather than whatever happens to be latest on the runner.
       - name: Set up .NET
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results
           path: "**/TestResults/*.trx"
@@ -103,7 +103,7 @@ jobs:
     # clean clone would not reach a healthy, migrated API.
     steps:
       - name: Check out
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create .env exactly as the README instructs
         run: |
@@ -178,16 +178,16 @@ jobs:
     # under clients/ and the build contexts are pointed at them.
     steps:
       - name: Check out the backend
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check out the portal
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-giftcard/open-giftcard-portal
           path: clients/open-giftcard-portal
 
       - name: Check out the cardholder
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: open-giftcard/open-giftcard-cardholder
           path: clients/open-giftcard-cardholder
@@ -299,7 +299,7 @@ jobs:
     # real defects, which is the argument for running it every time.
     steps:
       - name: Check out with history
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
