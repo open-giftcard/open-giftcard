@@ -4,9 +4,9 @@
   "channel": "release",
   "backendContract": {
     "repository": "open-giftcard/open-giftcard",
-    "commit": "a8a506ae7de8871ce24462e1e838eded3fba67bc",
+    "commit": "59cc102595ed74d5e41f79aa960d98809b0fd458",
     "endpoint": "/swagger/v1/swagger.json",
-    "sha256": "DE48FE7764D9C58DD4CEA3E9DC6A3B4698A29527CD0CBE386E9C4360AB32B663"
+    "sha256": "B86DC33616EBB03FF68437E0D2FA92125D9A04C9119FCB2CFF2C82D750A44592"
   },
   "components": [
     {

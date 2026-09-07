@@ -48,16 +48,19 @@ non-self-referential release metadata:
 | Cardholder | `6afd8b87ea261a1cf389845dc4488d4e10eaeac2` |
 | POS | `4531ec0c602599cb6d4ff3643f9dbf01a2278360` |
 
-The accepted backend commit serves OpenAPI SHA-256
-`DE48FE7764D9C58DD4CEA3E9DC6A3B4698A29527CD0CBE386E9C4360AB32B663`.
-All three client snapshots and all four compatibility manifests must carry that
-same pin in their final metadata commits.
+The accepted backend contract moved on 2026-09-07 when money stopped being
+declared as `double`. The accepted commit is now
+`59cc102595ed74d5e41f79aa960d98809b0fd458`, serving OpenAPI SHA-256
+`B86DC33616EBB03FF68437E0D2FA92125D9A04C9119FCB2CFF2C82D750A44592`. The
+previous pin was `a8a506a` at `DE48FE77...`; the two documents differ by exactly
+sixty fields, one character each. All three client snapshots and all four
+compatibility manifests carry the new pin.
 
 ## Release gate
 
 | Area | Required evidence | Current state | Owner |
 | --- | --- | --- | --- |
-| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests are now byte-identical and accept backend commit `a8a506a` and OpenAPI SHA-256 `DE48FE77...`, as do all three client snapshots and the backend's own baseline copy. The manifest no longer names the four `v0.5.0-rc.1` tags, which existed in no repository; schema 2 carries a development channel for that state and refuses a named tag that does not resolve locally. Hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
+| Four-repository compatibility | Exact backend, portal, cardholder, and POS commit manifest; identical accepted backend contract pin in every client | Source verified locally: all four manifests are byte-identical and accept backend commit `59cc102` and OpenAPI SHA-256 `B86DC336...`, as do all three client snapshots and the backend's own baseline copy. The manifest no longer names the four `v0.5.0-rc.1` tags, which existed in no repository; schema 2 carries a development channel for that state and refuses a named tag that does not resolve locally. Hosted `Coordinated release set` verified the pin on `4d21403` (run 32735940376), `13c09e4` (run 32823299738) and `8a88b7e` (run 32823947896) | Maintainer |
 | Backend correctness | Release build; architecture and unit suites; complete real-PostgreSQL integration suite | Local totals are 243 unit, 15 architecture, and 426 integration tests, all passing at 0 build warnings. The 421 recorded earlier was correct at `1d2f224` and was not updated when `a8a506a` added `RequiredFieldContractTests`; three Row-Level Security posture tests were added since. Hosted CI green on `13c09e4` (run 32821994689), `8a88b7e` (run 32823947756) and `303232a` (run 32824704228) | Maintainer and CI |
 | Client correctness | Release builds and full automated suites for portal, cardholder, and POS | Source verified at the current metadata commits: portal 104, cardholder 191, and POS 100 tests passed locally on 2026-08-31. The cardholder and POS figures had drifted the same way the backend's had, recorded once and not updated as tests were added. All three client repositories triggered CI only on `push` to `main`, so no head on this branch had ever been built; the trigger is now `["**"]` as the backend already used. First hosted client builds on this branch are green: portal `eff2add` (run 32826630979), cardholder `5cf65ea` (run 32826636671) and POS `4fb1784` (run 32826642278) | Maintainer and CI |
 | End-to-end transaction | Readiness for all five HTTP processes; runtime role check; forced RLS; recipient payment; POS confirmation; platform receipt; full refund | Source verified locally by `scripts/Test-OpenGiftCardSmoke.ps1`; the gate now accepts named HTTPS deployment endpoints, requires exact clean artifacts and pre-provisioned POS credentials, and emits checksum-protected redacted evidence; a real staging record remains | Maintainer |

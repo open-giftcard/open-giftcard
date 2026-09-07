@@ -8,10 +8,10 @@ build serves against this file and fails on a change that `VERSIONING.md`
 forbids within a major version.
 
 - Repository: https://github.com/open-giftcard/open-giftcard
-- Commit: `a8a506ae7de8871ce24462e1e838eded3fba67bc`
+- Commit: `59cc102595ed74d5e41f79aa960d98809b0fd458`
 - Endpoint: `/swagger/v1/swagger.json`
 - SHA-256:
-  `DE48FE7764D9C58DD4CEA3E9DC6A3B4698A29527CD0CBE386E9C4360AB32B663`
+  `B86DC33616EBB03FF68437E0D2FA92125D9A04C9119FCB2CFF2C82D750A44592`
 
 The three client repositories hold a byte-identical copy of this file, and
 `RELEASE_COMPATIBILITY.json` records the same commit and hash in all four.

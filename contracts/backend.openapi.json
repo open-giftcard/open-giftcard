@@ -6356,7 +6356,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string",
@@ -6529,7 +6529,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string",
@@ -6584,7 +6584,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -6835,7 +6835,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -6969,7 +6969,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -6991,7 +6991,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -7026,7 +7026,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -7056,7 +7056,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -7102,7 +7102,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -7177,7 +7177,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "contactType": {
             "$ref": "#/components/schemas/GiftCardShareContactType"
@@ -7201,7 +7201,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "idempotencyKey": {
             "minLength": 1,
@@ -7255,7 +7255,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "posTransactionReference": {
             "type": "string",
@@ -7279,7 +7279,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "idempotencyKey": {
             "minLength": 1,
@@ -7634,7 +7634,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "currency": {
@@ -7724,7 +7724,7 @@
           },
           "fundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -7932,7 +7932,7 @@
           },
           "returnedAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "currency": {
@@ -8014,7 +8014,7 @@
           },
           "fundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -8179,7 +8179,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -8286,7 +8286,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string",
@@ -8518,14 +8518,14 @@
           },
           "fundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
           },
           "remainingBalance": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "issuingOrganizationId": {
@@ -8595,47 +8595,47 @@
           },
           "granted": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "reversed": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "issued": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "distributed": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "remainingCorporateCredit": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "remainingGiftCardValue": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "cancelledReturned": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "expiredReturned": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "spent": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "refunded": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "netSpent": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -8738,19 +8738,19 @@
           },
           "fundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "balance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "reservedBalance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "availableBalance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -8834,19 +8834,19 @@
           },
           "fundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "balance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "reservedBalance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "availableBalance": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -9014,7 +9014,7 @@
           },
           "availableAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -9042,15 +9042,15 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "requestedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "outstandingAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -9080,7 +9080,7 @@
           },
           "confirmedAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "redemptionLedgerTransactionId": {
@@ -9132,7 +9132,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "refundLedgerTransactionId": {
             "type": "string",
@@ -9165,7 +9165,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -9190,7 +9190,7 @@
           },
           "remainingRefundableAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -9219,19 +9219,19 @@
           },
           "provisionedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "confirmedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "refundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "netAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -9280,20 +9280,20 @@
           },
           "provisionedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "confirmedAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "refundedAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "netAmount": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "currency": {
             "type": "string"
@@ -9382,7 +9382,7 @@
           },
           "amount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "currency": {
@@ -9400,7 +9400,7 @@
           },
           "confirmedAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           }
         },
@@ -9585,12 +9585,12 @@
           },
           "expectedAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "actualAmount": {
             "type": "number",
-            "format": "double",
+            "format": "decimal",
             "nullable": true
           },
           "message": {
