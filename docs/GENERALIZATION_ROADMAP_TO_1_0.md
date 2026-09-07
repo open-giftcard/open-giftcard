@@ -141,16 +141,27 @@ and upgrade behavior inside the tested release boundary.
 A profile is a versioned configuration preset over the same artifacts. It is not
 a separate edition, fork, branch, or release line.
 
-Initial supported profiles should be:
+Supported profiles at 1.0 should be three:
 
-- `minimal-single-merchant`;
-- `community-alliance`;
-- `corporate-rewards`;
-- `retail-pos`;
-- `reseller-epin`;
-- `headless-api`;
-- `multi-merchant`;
-- and `hardened-enterprise`.
+- `corporate-rewards + retail-pos`, the existing system, which must keep working
+  and is the regression baseline;
+- `minimal-single-merchant`, the smallest useful deployment, which proves the
+  kernel works without corporate credit or an operator-controlled till;
+- `multi-merchant`, which proves participant topology and settlement
+  attribution are real rather than modelled.
+
+Those three are chosen because they are the ones that *prove the generalization*.
+The first shows nothing regressed, the second shows the supermarket assumptions
+are gone, and the third shows the new abstractions carry weight. A fourth adds
+confidence but not evidence.
+
+`community-alliance`, `reseller-epin`, `headless-api` and `hardened-enterprise`
+move to post-1.0. This is a capacity judgement, not a design one. The
+verification matrix below requires every supported profile to exercise the
+financial, RLS, API, migration and recovery layers, so each profile is a
+standing test burden and a standing support promise. Eight of those maintained
+by one person means eight configurations that are each tested less well than
+three would be.
 
 A profile selects:
 
@@ -232,6 +243,36 @@ remain official reviewed modules.
 - The capability matrix is generated or verified from the released artifacts and
   configuration schema rather than maintained only as prose.
 
+## Capacity, and what that forces
+
+This roadmap described eight milestones without saying who would build them or
+over what horizon. That omission is not neutral: it makes every milestone read
+as equally urgent and lets the plan promise a distribution product, an
+operations product, and a re-architecture of the financial domain in the same
+breath as the domain work itself.
+
+`SECURITY.md` states the real constraint plainly: this is a small project
+maintained by one person. M1 through M4 alone rewrite the ownership, funding,
+acceptance, and identity models of a double-entry financial system that already
+works, under an expand-migrate-contract discipline, with RLS and reconciliation
+evidence per step. That is the substance of the roadmap and it is measured in
+person-years, not weeks.
+
+Two consequences follow, and the rest of this document has been adjusted for
+them.
+
+**Sequence rather than breadth.** M1 through M4 are the work that cannot be
+avoided, because they change contracts and stored state. M5 through M7 package
+that work, and packaging scales with how many shapes it must support. Where this
+roadmap previously listed every shape worth eventually supporting, it now lists
+the smallest set that proves the model generalizes, and names the rest as
+post-1.0.
+
+**A generalized 1.0 is not this month's release.** Anyone reading this should
+expect the `0.x` line to continue through the domain milestones. Cutting a 1.0
+before M4 settles would freeze exactly the assumptions the audit says must move,
+which is the mistake a premature `v1.0.0` already made once on 2026-09-07.
+
 ## Milestone overview
 
 | Milestone | Outcome | Depends on |
@@ -265,11 +306,22 @@ which documented records are current.
 4. Publish one current capability and limitation matrix for all components.
 5. Split current documentation from archived plans, handoffs, reviews, and
    superseded research.
-6. Extract ADRs into independently linkable records or provide an equally stable
-   published index.
+6. ~~Extract ADRs into independently linkable records~~ **Done, by the second
+   option.** `docs/DECISIONS.md` is published and CI fails any `ADR-nnn` cited
+   in a tracked file that has no entry in it. Splitting 57 records into separate
+   files would break 214 existing citations across the source to produce the
+   same resolvability the index already provides, so it is dropped rather than
+   deferred.
 7. Reconcile current release/tag claims across backend and client repositories.
 8. Record the current OpenAPI contract defects and client-validation blind spots
-   as release blockers.
+   as release blockers. **Partly done.** Money was declared as `number/double`
+   on 53 schema fields, and the portal's generated client consequently held all
+   of its amounts in binary `double`, including three explicit `(double)amount`
+   narrowing casts on the funding path. That is corrected: the contract declares
+   `number/decimal`, the pin is rolled through all four repositories, and the
+   portal is decimal from parse to wire. The compatibility gate could not see
+   this class of change and now compares type and format. Enum serialization
+   differences and a published conformance suite for custom clients remain.
 9. Create a cross-repository threat model covering human, service, POS, partner,
    merchant, claim, webhook, adapter, and deployment trust boundaries.
 10. Define the exact compatibility surfaces owned by core, clients, adapters,
@@ -799,7 +851,7 @@ protocol:
 - advanced audit custody disabled unless selected;
 - no HA claim.
 
-#### Hardened Production
+#### Hardened Production, documented but not supported at 1.0
 
 - managed or replicated PostgreSQL;
 - multiple application replicas;
@@ -811,13 +863,37 @@ protocol:
 - tested recovery;
 - and formal deployment evidence.
 
+This was listed as a supported tier. It is now documented as a target an
+operator can build toward, with the project supplying the properties it can
+actually certify from source, and no claim that the project has run this shape.
+
+The reason is that this project has never been deployed anywhere, once. Going
+from zero deployments to three supported tiers in one release would repeat, at
+larger scale, the error the release-readiness gate already warns about: a source
+artifact does not prove an operator's controls. Several items in this tier are
+also explicitly outside what the project can certify at any version, including
+managed identity, external custody, and controlled ingress.
+
+Promote it to supported when one named environment has run it and the evidence
+is recorded, which is the `v0.5.0` line, not the 1.0 one.
+
 The tiers differ in availability, custody, and operational assurance. They do not
 differ in ledger, authorization, tenant isolation, audit immutability, secret
 handling, or migration correctness.
 
-### Operator dashboard
+### Operator dashboard, reduced for 1.0
 
-Expose:
+At 1.0 this is a runbook plus the readiness and metrics surfaces that already
+exist, not a built interface. The backend already exposes bounded OTLP metrics,
+a readiness probe that names modules behind the build, and six alert rules; an
+operator can answer most of the questions below from those today.
+
+A built dashboard is eleven distinct signal classes with their own refresh,
+authorization, and failure behaviour. That is a product, and it competes
+directly with the domain milestones for the same single maintainer.
+
+The list below stays as the specification for what the runbook must let an
+operator answer, and as the eventual dashboard scope:
 
 - service and dependency readiness;
 - migration state;
@@ -980,7 +1056,7 @@ Every milestone and future release should run these layers:
 | Client compatibility | Actual request serialization and response handling across supported ranges |
 | Security | Threat-model regression, secret handling, replay, quotas, dependency and code scans |
 | Recovery | Backup, restore, worker restart, lost response, credential rotation, replica handoff |
-| Human acceptance | Accessibility, localization, mobile, merchant/POS workflow, operational clarity |
+| Human acceptance | Accessibility, localization, mobile, merchant/POS workflow, operational clarity. Per release rather than per milestone: this layer needs a person driving a browser, and requiring it at every milestone exit either stalls the milestone or turns the check into a formality |
 
 No optional profile may skip the financial, RLS, API, migration, or recovery
 layers. It may omit tests only for a capability that is genuinely absent.
@@ -1043,6 +1119,53 @@ Before implementation begins on each milestone, its ADR set must answer:
 - Which supported profiles exercise it?
 - Which public compatibility surface changes?
 - What evidence closes the milestone?
+
+## Feasibility review, 2026-09-07
+
+This roadmap was reviewed against the codebase rather than read on its own
+terms, and edited where a claim was not achievable by the people who would have
+to achieve it. The architecture was not changed. Every edit reduced scope or
+corrected a statement that had gone stale; none altered the model.
+
+**Kept, because it is right.** The composition model is the strongest part of
+this document and should not be revisited. Compiling the kernel and official
+modules together, treating profiles as versioned configuration over one artifact
+set rather than as editions, and pushing third-party integrations out of
+process, are the three decisions that stop a generalized platform becoming an
+unmaintainable framework. The three levels of optionality, and in particular
+binding an issued instrument to the policy version it was issued under, is the
+insight the whole model rests on. The maintenance constraints read like they
+were written by someone who has watched this go wrong before.
+
+**Reduced, on capacity grounds.** Supported profiles went from eight to three,
+deployment tiers from three supported to two supported plus one documented, and
+the operator dashboard from a built interface to a runbook over surfaces that
+already exist. None of these is a disagreement about direction. Each is the same
+observation: the verification matrix makes every supported shape a standing test
+and support burden, and one maintainer cannot carry eight of them without
+carrying all of them badly.
+
+**Corrected, because the codebase had moved.** Two M0 items were already done or
+partly done. The ADR extraction is unnecessary because the published index plus
+a CI check already gives the resolvability it was asking for. The contract
+defects item is half closed, because the money declaration was fixed the same
+day this review was written.
+
+**Left standing as a known risk.** M1 through M4 rewrite the ownership, funding,
+acceptance and identity models of a working double-entry system. Expand, migrate,
+converge, prove, contract is the right discipline and the historical-integrity
+rules are sound, in particular that a migration which cannot map a legacy state
+stops and reports rather than guessing. It remains the riskiest work this project
+has attempted, and the roadmap is right that security cannot be deferred to M7.
+
+**One thing this review could not settle.** The roadmap assumes the generalized
+model is worth the cost, and that assumption is a product judgement rather than
+an engineering one. The audit makes a strong case that freezing the current
+contract would force adopters to fork. It does not establish that adopters exist
+who want the generalized shape badly enough to justify person-years of rework on
+a system that currently works. That question should be answered before M1 starts,
+because M1 is the point of no return: after it, the old model is gone and the new
+one is not yet proven.
 
 ## Final success condition
 
