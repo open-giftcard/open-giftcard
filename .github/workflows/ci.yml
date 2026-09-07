@@ -241,16 +241,23 @@ jobs:
           # The credentials the README publishes. If this step fails, the README
           # is wrong, which is the failure this job exists to catch.
           #
-          # The Origin header is required, not decoration. The BFF refuses a
-          # state-changing request whose Origin does not match its own scheme
-          # and host, which is its CSRF defence, and a request without one is
-          # refused with 403 origin-rejected. A browser always sends it; curl
-          # does not unless told to.
+          # This is the flow a browser performs, not a shortcut around it. The
+          # BFF refuses a state-changing request whose Origin does not match its
+          # own scheme and host, and separately validates an antiforgery token,
+          # so the token has to be fetched first and returned in the header the
+          # portal configures. The single-page application does exactly this.
           origin="http://127.0.0.1:${port}"
-          status=$(curl -sS -o /tmp/login.json -w '%{http_code}' -X POST "${origin}/bff/auth/login" -H 'Content-Type: application/json' -H "Origin: ${origin}" -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}' || true)
+          jar=$(mktemp)
+
+          token=$(curl -sS -c "$jar" -H "Origin: ${origin}" "${origin}/bff/antiforgery"             | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          test -n "$token"
+          echo "antiforgery token acquired"
+
+          status=$(curl -sS -o /tmp/login.json -w '%{http_code}' -b "$jar" -c "$jar" -X POST "${origin}/bff/auth/login" -H 'Content-Type: application/json' -H "Origin: ${origin}" -H "X-CSRF-TOKEN: ${token}" -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}' || true)
           echo "portal login status: $status"
           head -c 400 /tmp/login.json || true
           echo
+
           # 200 or nothing. The portal reached the backend, the backend accepted
           # the credentials the README publishes, and the BFF built a session.
           # Anything else means the documented first run does not work.
