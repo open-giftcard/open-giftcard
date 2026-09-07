@@ -297,6 +297,80 @@ traces, tokens, or raw unexpected server responses.
 
 ---
 
+## Idempotency and Retry
+
+Read this before integrating anything that moves value. A client that does not
+retry will see intermittent conflicts under load and conclude the platform is
+unreliable, when the platform is asking it to do something specific.
+
+### Every value-changing operation takes an idempotency key
+
+Allocation, issuance, distribution, claim, sharing, payment provisioning,
+confirmation and refund all accept an idempotency key, and the key is required
+where the operation creates value. The server enforces uniqueness on
+`operation_type + idempotency_key` with a database constraint, so the guarantee
+does not depend on application code winning a race.
+
+Three outcomes are possible for a given key:
+
+| Situation | Response |
+| --- | --- |
+| First call | The operation is performed. |
+| Replay with the same intent | The original result is returned. Nothing is performed a second time. |
+| Replay with different intent | `409` with code `ledger.idempotency_key.reused`. |
+
+The third case is the one worth understanding. The key is bound to a hash of
+what the operation was *for*, not just to its name, so reusing a key with a
+different amount, card, or organization is refused rather than silently
+returning the wrong earlier result. Generate a fresh key per logical operation,
+persist it with your own record of that operation, and send the same key on
+every retry of it.
+
+### The server does not retry serialization failures. You do.
+
+Value-changing work runs at `SERIALIZABLE`. When PostgreSQL detects a
+serialization conflict, the operation is refused rather than retried inside the
+request:
+
+```json
+{
+  "status": 409,
+  "title": "Conflict.",
+  "detail": "A concurrent financial operation conflicted. Retry safely with the same idempotency key."
+}
+```
+
+The code is `financial.concurrent_conflict`, or
+`ledger.idempotency_or_account.conflict` when the conflict was a unique
+violation.
+
+**This is not an error condition.** It is the expected outcome of two callers
+touching the same card or the same organization balance at the same moment, and
+it is why the idempotency key exists. Retry the identical request, with the
+identical key, and it will either perform the operation or return the result of
+the call that won.
+
+A reasonable client policy:
+
+- retry on `409` with `financial.concurrent_conflict` or
+  `ledger.idempotency_or_account.conflict`
+- three attempts, with a short randomised backoff between them
+- never change the idempotency key between attempts
+- do not retry `409` with `ledger.idempotency_key.reused`, which means your key
+  is wrong rather than that the server was busy
+
+Retrying is safe by construction. The worst case for a duplicate request is
+that it returns the original result.
+
+### What is not retryable
+
+`400` and `422` are your request. `401` needs a refresh, `403` and `404` are
+authorization outcomes and a `404` may mean the resource belongs to another
+tenant. `429` carries `Retry-After`; honour it. `5xx` may be retried with the
+same key, and the idempotency guarantee still holds.
+
+---
+
 ## Client Implementation Checklist
 
 * Generate or type the client from Development OpenAPI; do not copy backend
