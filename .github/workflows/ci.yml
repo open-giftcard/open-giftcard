@@ -240,7 +240,14 @@ jobs:
           port=$(grep -E '^PORTAL_PORT=' .env | cut -d= -f2); port=${port:-5179}
           # The credentials the README publishes. If this step fails, the README
           # is wrong, which is the failure this job exists to catch.
-          status=$(curl -sS -o /tmp/login.json -w '%{http_code}'             -X POST "http://127.0.0.1:${port}/bff/auth/login"             -H 'Content-Type: application/json'             -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}' || true)
+          #
+          # The Origin header is required, not decoration. The BFF refuses a
+          # state-changing request whose Origin does not match its own scheme
+          # and host, which is its CSRF defence, and a request without one is
+          # refused with 403 origin-rejected. A browser always sends it; curl
+          # does not unless told to.
+          origin="http://127.0.0.1:${port}"
+          status=$(curl -sS -o /tmp/login.json -w '%{http_code}' -X POST "${origin}/bff/auth/login" -H 'Content-Type: application/json' -H "Origin: ${origin}" -d '{"email":"company.admin@example.test","password":"Demo passphrase 2026!"}' || true)
           echo "portal login status: $status"
           head -c 400 /tmp/login.json || true
           echo
