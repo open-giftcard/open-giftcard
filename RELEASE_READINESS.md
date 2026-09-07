@@ -1,13 +1,17 @@
-# Deployment-Certified Release Candidate
+# Deployment Certification Gate
 
-This is the working gate for the first coordinated public Open Giftcard
-candidate across the backend, portal, cardholder, and POS repositories. The
-target name is `v0.5.0-rc.1`.
+This is the gate for `v0.5.0`, the deployment claim: that the platform has run
+in a named environment and the evidence is recorded. It is separate from
+`v1.0.0` and still open.
 
-The target name is not a release claim. No canonical public repository had a
-remote tag when this audit began on 2026-08-24. Local `v0.2` through `v0.4`
-tags in older working copies point into retained legacy history and are not
-public Open Giftcard releases.
+`v1.0.0` was released on 2026-09-07 and is not gated by this document.
+`VERSIONING.md` explains the split: `v0.5.0` carries deployment evidence and
+`v1.0.0` carries the promises the project can keep on its own, a stable API, a
+safe upgrade, and a system someone else can adopt without forking. Neither
+waits for the other, and neither is a production warranty.
+
+Nothing in this document has been satisfied by the 1.0 release. Nothing has
+been deployed anywhere.
 
 ## Certification boundary
 

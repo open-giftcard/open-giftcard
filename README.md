@@ -14,23 +14,23 @@ integration suite describe the system precisely, and the document is wrong.
 ## Current state
 
 All four functional phases are implemented. The current release is
-**`v0.9.1`**, cut across all four repositories at the same commit set and
+**`v1.0.0`**, cut across all four repositories at the same commit set and
 recorded in [`RELEASE_COMPATIBILITY.json`](RELEASE_COMPATIBILITY.json).
-`v0.9.0` was the first tag this project ever published, an hour earlier; it
-named a commit whose own CI failed, and `v0.9.1` is the corrected release.
 
-`v0.9.1` is still `0.x`, and it is worth being precise about what that buys you.
-It means the source is complete and checks its own claims: the API contract, the
-upgrade path, and every architecture decision the code cites are enforced or
-published rather than asserted. It does **not** mean the API is stable, that an
-upgrade path has been exercised, or that anything has been deployed anywhere.
-Pin by tag if you want a fixed point; expect it to move under you until 1.0.
+**What 1.0 commits this project to.** `/api/v1` will not break within 1.x, and
+CI fails any change the policy forbids. Any 1.x release applies cleanly on top
+of any earlier 1.x database, and CI upgrades a populated one on every build.
+One command brings up the API, the portal and the cardholder with a populated
+tenant, and CI signs in through the portal using the credentials published
+below. Every architecture decision the source cites resolves to a document in
+[`docs/`](docs/README.md).
 
-[`VERSIONING.md`](VERSIONING.md) states what each number commits this project
-to. In short: `v0.5.0` means it has been deployed to a named environment with
-the evidence recorded, and `v1.0.0` means `/api/v1` is stable and upgrades
-within 1.x are safe. Both are still open, they are independent of each other,
-and neither is a production warranty.
+**What it does not.** Nothing has been deployed to a named environment, and
+1.0 deliberately makes no deployment claim; that is `v0.5.0`, which is still
+open. The database schema is not a stable interface. SMS, managed audit key
+custody and configurable branding are documented non-goals.
+[`VERSIONING.md`](VERSIONING.md) is precise about all of it, including what the
+enforcement does not cover.
 
 An earlier revision of this section announced a synchronized candidate
 `v0.4.0-rc.2` across three repositories, with commit identifiers. Those tags
@@ -47,10 +47,10 @@ client-to-backend compatibility.
 Nothing here has been deployed anywhere. See "What is not done" below, and the
 honest gap list in `SECURITY.md`.
 
-The working gate for the first four-repository public candidate is
-[`RELEASE_READINESS.md`](RELEASE_READINESS.md). It records required source,
-deployment, operator, recovery, and human evidence without treating a target
-version as a completed release.
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md) is the gate for `v0.5.0`, the
+deployment claim, which is separate from 1.0 and still open. It records the
+source, deployment, operator, recovery, and human evidence a named environment
+would have to supply.
 
 ### What works
 
