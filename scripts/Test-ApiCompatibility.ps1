@@ -155,6 +155,33 @@ function Compare-Schema {
     if (-not $Visited.Add($key)) { return }
     if ($Visited.Count -gt 4000) { return }
 
+    # Type and format. Neither was compared until 2026-09-07, so a money field
+    # could have changed from an integer to a string and this script would have
+    # reported no breaking change at all.
+    #
+    # A changed type is treated as breaking in both directions. For any consumer
+    # it is indistinguishable from the field being removed and a differently
+    # typed one added in its place, which the promise does forbid.
+    #
+    # A changed format is reported and not failed. Format is advisory in OpenAPI
+    # and validators may ignore it, so it is outside the forbidden list, and this
+    # script fails only on that list. It still matters: generated clients pick
+    # their language type from it, so the note names that consequence rather than
+    # passing silently.
+    $baselineType = Get-PropertyValue $Baseline 'type'
+    $currentType = Get-PropertyValue $Current 'type'
+    if ($baselineType -and $currentType -and $baselineType -ne $currentType) {
+        $breaking.Add("$Location changed type from '$baselineType' to '$currentType'.")
+    }
+
+    $baselineFormat = Get-PropertyValue $Baseline 'format'
+    $currentFormat = Get-PropertyValue $Current 'format'
+    if ($baselineFormat -ne $currentFormat) {
+        $from = if ($baselineFormat) { $baselineFormat } else { '(none)' }
+        $to = if ($currentFormat) { $currentFormat } else { '(none)' }
+        $warnings.Add("$Location changed format from '$from' to '$to'. A generated client will pick a different language type.")
+    }
+
     $baselineEnum = Get-PropertyValue $Baseline 'enum'
     if ($baselineEnum) {
         $currentEnum = Get-PropertyValue $Current 'enum'

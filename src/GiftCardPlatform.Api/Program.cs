@@ -409,6 +409,27 @@ builder.Services.AddSwaggerGen(options =>
         [new OpenApiSecuritySchemeReference("Bearer", document)] = [],
     });
 
+    // Money is decimal end to end: decimal(scale 4) in the domain, numeric in
+    // PostgreSQL. Swashbuckle's default mapping for decimal is number/double,
+    // which is not a documentation detail. NSwag and every other generator read
+    // format and emit a binary floating point type from it, so the portal's
+    // generated client held all of its amounts and balances in double.
+    //
+    // The wire bytes do not change. System.Text.Json already writes decimal as
+    // an exact JSON number and JSON numbers carry no precision limit; only the
+    // declared format was wrong. Declaring decimal lets a generator pick a
+    // decimal type instead.
+    options.MapType<decimal>(() => new OpenApiSchema
+    {
+        Type = JsonSchemaType.Number,
+        Format = "decimal",
+    });
+    options.MapType<decimal?>(() => new OpenApiSchema
+    {
+        Type = JsonSchemaType.Number | JsonSchemaType.Null,
+        Format = "decimal",
+    });
+
     options.SupportNonNullableReferenceTypes();
 });
 
