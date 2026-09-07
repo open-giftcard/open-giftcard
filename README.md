@@ -130,7 +130,9 @@ to freeze; that is recorded in `VERSIONING.md` rather than erased.
 ## Reading further
 
 [`docs/`](docs/README.md) is the architecture, the domain rules, the code map,
-and the decision records. The code is the authority over all of it: where a
+and the decision records. [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) is the
+shortest honest answer to "what would I actually be getting": every capability
+with how far it is taken, and which parts stay an operator's responsibility. The code is the authority over all of it: where a
 document and the implementation disagree, the architecture tests, the
 migrations, and the integration suite describe the system precisely, and the
 document is wrong.
