@@ -12,6 +12,8 @@ integration suite describe the system precisely and the document is wrong.
 | Document | Read it for |
 | --- | --- |
 | [`PROJECT_DEFINITION.md`](PROJECT_DEFINITION.md) | What the platform is for, its scope, and the phased roadmap it was built against. |
+| [`GENERALIZATION_AND_1_0_SCOPE_AUDIT.md`](GENERALIZATION_AND_1_0_SCOPE_AUDIT.md) | Which current assumptions are reusable core, optional profiles, or barriers to broader adoption. |
+| [`GENERALIZATION_ROADMAP_TO_1_0.md`](GENERALIZATION_ROADMAP_TO_1_0.md) | The dependency-ordered roadmap, migration strategy, release model, and evidence gates for a generalized 1.0. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the modular monolith is put together: modules, boundaries, dependency direction, transaction and audit design. |
 | [`DOMAIN_RULES.md`](DOMAIN_RULES.md) | The vocabulary and the invariants. Read this before changing anything that touches value. |
 | [`DECISIONS.md`](DECISIONS.md) | The architecture decision records. Source comments cite these by number, for example `ADR-019`. |

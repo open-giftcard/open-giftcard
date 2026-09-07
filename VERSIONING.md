@@ -32,9 +32,33 @@ rather than after.
 
 What `v0.9.x` says: the code is finished enough to hold still, the promises are
 written down, and the machinery that will enforce them is running. What it does
-not say: that anything has been deployed, or that the API will not change. The
-first of those is `v0.5.0` and is still open. The second is `v1.0.0`, and the
-gate below is now closed.
+not say: that anything has been deployed, or that the API will not change. Both
+are still open.
+
+### A v1.0.0 was cut and retracted on 2026-09-07
+
+It is recorded here rather than erased, because a version number that appeared
+and disappeared is exactly the kind of thing an adopter deserves to find an
+explanation for.
+
+The gate below was closed and the release was tagged, published, and verified
+green in all four repositories. Seventeen minutes later a generalization and
+scope audit concluded that `/api/v1` should not be frozen at all yet: several
+decisions belonging to the original corporate-retail customer had become
+platform-wide invariants, and freezing the contract would carry that model into
+every adopter's architecture. Corporate credit is treated as the definition of
+funding, an operator-controlled till as the definition of acceptance, and a
+single global settlement account as the definition of where value lands.
+
+The tag and the releases were removed the same day. There were no known
+consumers and the release was never announced beyond its release pages.
+
+The gate was not wrong about what it measured. It was measuring whether the
+promises as written were enforced, and they were. It never asked whether those
+were the right promises to freeze. That question is now the roadmap's, which
+takes `v0.9.1` as its baseline and defines 1.0 as the outcome of a
+generalization programme rather than as the current system with its guarantees
+turned on.
 
 ## What 1.0 promises
 

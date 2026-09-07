@@ -9,6 +9,19 @@ promise; see `VERSIONING.md` for what the number means and what it deliberately
 does not. Local tags predating the open-source cleanup are not usable, were
 never published, and are not listed.
 
+## Unreleased
+
+### Removed
+
+- `v1.0.0` was cut on 2026-09-07 and retracted the same day. A generalization
+  and scope audit written shortly after the tag concluded that `/api/v1` should
+  not be frozen yet, because decisions belonging to the original corporate-retail
+  customer had become platform-wide invariants. The tag and the GitHub releases
+  are deleted in all four repositories and `v0.9.1` is the current release again.
+  `VERSIONING.md` records what happened and why. Nothing verified was reverted:
+  the full-stack CI job, the SDK and container fixes, and the idempotency
+  documentation all remain.
+
 ## v0.9.1 - 2026-08-31
 
 ### Fixed
