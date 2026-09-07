@@ -191,7 +191,11 @@ jobs:
         shell: pwsh
         run: |
           $manifest = Get-Content -LiteralPath 'release-artifacts/ARTIFACTS.json' -Raw | ConvertFrom-Json
-          if ([string]$manifest.release -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$') {
+          # Accepts a final release as well as a candidate. This was written
+          # when the only target was v0.5.0-rc.1 and required the -rc suffix,
+          # so it rejected v1.0.0 with "invalid release" and no release could
+          # ever be attested. Same shape as Test-ReleaseContract.ps1.
+          if ([string]$manifest.release -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$') {
             throw "Artifact manifest carries invalid release '$($manifest.release)'."
           }
           "RELEASE_VERSION=$($manifest.release)" >> $env:GITHUB_ENV
