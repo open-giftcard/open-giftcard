@@ -1,7 +1,7 @@
 # Build and run the API. The same image serves the application and applies
 # migrations, selected by the --migrate argument, so the schema is never applied
 # by a build that differs from the one that will serve it.
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /source
 
 # Restore against the manifests first so a source-only change does not
